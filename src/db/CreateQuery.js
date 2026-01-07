@@ -2,8 +2,9 @@
  * @param {string} tableName
  * @param {string} rawString - The DBF structure string
  * @param {Object} overrides - Optional size overrides { FIELD_NAME: newSize }
+ * @param {string|string[]|null} uniqueKey - Pass an array for composite keys
  */
-function CreateQuery(tableName, rawString, overrides = {}) {
+function CreateQuery(tableName, rawString, overrides = {}, uniqueKey = null) {
   const fields = rawString.split(", ");
 
   // Management fields for your multi-tenant setup
@@ -52,7 +53,20 @@ function CreateQuery(tableName, rawString, overrides = {}) {
   });
 
   // Composite Unique Key (client_id + business code)
-  columns.push("  UNIQUE KEY `idx_client_product` (`cliente_id`, `CODIGO`) ");
+  // columns.push("  UNIQUE KEY `idx_client_product` (`cliente_id`, `CODIGO`) ");
+  if (uniqueKey) {
+    // Handle both single string "CODIGO" or array ["NCP", "PARC"]
+    const keyArray = Array.isArray(uniqueKey) ? uniqueKey : [uniqueKey];
+
+    // Combine cliente_id with the provided keys
+    const keyColumns = ["cliente_id", ...keyArray]
+      .map((k) => `\`${k}\``)
+      .join(", ");
+
+    columns.push(
+      `  UNIQUE KEY \`idx_client_${tableName}_unique\` (${keyColumns})`
+    );
+  }
 
   return `CREATE TABLE IF NOT EXISTS \`${tableName}\` (\n${columns.join(
     ",\n"
