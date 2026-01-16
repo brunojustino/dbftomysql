@@ -63,9 +63,7 @@ function CreateQuery(tableName, rawString, overrides = {}, uniqueKey = null) {
       .map((k) => `\`${k}\``)
       .join(", ");
 
-    columns.push(
-      `  UNIQUE KEY \`idx_client_${tableName}_unique\` (${keyColumns})`
-    );
+    columns.push(`  UNIQUE KEY \`idx_${tableName}_unique\` (${keyColumns})`);
   }
 
   return `CREATE TABLE IF NOT EXISTS \`${tableName}\` (\n${columns.join(
