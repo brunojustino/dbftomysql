@@ -22,7 +22,9 @@ function CreateQuery(tableName, rawString, overrides = {}, uniqueKey = null) {
       size = overrides[name];
       // console.log(`-> Override applied for ${name}: New size = ${size}`);
     }
-
+    // console.log(
+    //   `-> Processing field ${name}: Type=${type}, Size=${size}, Decimals=${decimals}`
+    // );
     let mysqlType = "";
     switch (type) {
       case "C":
@@ -65,6 +67,12 @@ function CreateQuery(tableName, rawString, overrides = {}, uniqueKey = null) {
 
     columns.push(`  UNIQUE KEY \`idx_${tableName}_unique\` (${keyColumns})`);
   }
+
+  // Add timestamp fields
+  columns.push("  `createdAt` TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
+  columns.push(
+    "  `updatedAt` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
+  );
 
   return `CREATE TABLE IF NOT EXISTS \`${tableName}\` (\n${columns.join(
     ",\n"

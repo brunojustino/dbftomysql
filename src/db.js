@@ -11,6 +11,8 @@ async function connectToDatabase() {
       waitForConnections: true,
       connectionLimit: 10,
       queueLimit: 0,
+      enableKeepAlive: true,
+      initializationQuery: "SET time_zone = '-03:00'", // Brasilia timezone (UTC-3)
     });
 
     console.log("Successfully connected to MySQL Pool!");
