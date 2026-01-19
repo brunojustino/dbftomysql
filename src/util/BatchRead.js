@@ -7,6 +7,7 @@ const CreateTable = require("../db/CreateTable");
 const InsertTable = require("../db/InsertTable");
 const InsertQuery = require("../db/InsertQuery");
 const { getDbfStructure, getDbfRecords } = require("./DbfFuncs");
+const TableNames = require("../db/TableNames");
 
 async function createTable(
   db,
@@ -50,9 +51,13 @@ async function processFolder(db, folderPath, idCliente, logError = null) {
     const files = await fs.readdir(folderPath);
 
     // 2. Filter for files ending in .dbf (case insensitive)
-    const dbfFiles = files.filter((file) =>
-      file.toLowerCase().endsWith(".dbf"),
-    );
+    const dbfFiles = files.filter((file) => {
+      const isDbf = file.toLowerCase().endsWith(".dbf");
+      const fileNameOnly = path
+        .basename(file, path.extname(file))
+        .toLowerCase();
+      return isDbf && TableNames.includes(fileNameOnly);
+    });
 
     // 3. Loop through them
     let processedCount = 0;
