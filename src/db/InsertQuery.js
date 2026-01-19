@@ -19,7 +19,7 @@ function InsertQuery(tableName, records, clienteId) {
         // Inject the client identifier
         if (isNaN(clienteId) || clienteId === null || clienteId === undefined) {
           throw new Error(
-            `Invalid clienteId: ${clienteId} (type: ${typeof clienteId})`
+            `Invalid clienteId: ${clienteId} (type: ${typeof clienteId})`,
           );
         }
         newRec["cliente_id"] = clienteId;
@@ -34,7 +34,7 @@ function InsertQuery(tableName, records, clienteId) {
         throw new Error(
           `Error processing record ${idx}: ${
             recordErr.message
-          } record=${JSON.stringify(rec)}`
+          } record=${JSON.stringify(rec)}`,
         );
       }
     });
@@ -51,12 +51,12 @@ function InsertQuery(tableName, records, clienteId) {
     // Extract valid columns (string keys, not internal @ keys, not empty)
     const columns = allKeys.filter(
       (key) =>
-        typeof key === "string" && !key.startsWith("@") && key.trim() !== ""
+        typeof key === "string" && !key.startsWith("@") && key.trim() !== "",
     );
 
     if (columns.length === 0) {
       throw new Error(
-        `No valid columns found in records. All keys: ${allKeys.join(", ")}`
+        `No valid columns found in records. All keys: ${allKeys.join(", ")}`,
       );
     }
 
@@ -66,54 +66,27 @@ function InsertQuery(tableName, records, clienteId) {
     // Check if NaN snuck into the SQL
     if (escapedColumns.includes("NaN")) {
       throw new Error(
-        `NaN found in escapedColumns! columns=${JSON.stringify(columns)}`
+        `NaN found in escapedColumns! columns=${JSON.stringify(columns)}`,
       );
     }
 
     // Generate the UPSERT part so it updates existing records for that client
-    // Don't include createdAt in updates, but ensure updatedAt is set to NOW() in Brasilia timezone
+    // Don't include createdAt in updates, but ensure updatedAt is set to NOW()
     const updatePart = columns
       .filter((col) => col !== "createdAt") // Exclude createdAt from updates
       .map((col) => {
         if (col === "updatedAt") {
-          return "`updatedAt` = CONVERT_TZ(NOW(), '+00:00', '-03:00')";
+          return "`updatedAt` = NOW()";
         }
         return `\`${col}\` = VALUES(\`${col}\`)`;
       })
       .join(", ");
 
-    // For new inserts, also set createdAt and updatedAt with timezone conversion
-    const insertColumnsList = [...columns, "createdAt", "updatedAt"];
-    const insertColumnsStr = insertColumnsList.map((col) => `\`${col}\``).join(", ");
-
-    const sql = `INSERT INTO \`${tableName}\` (${insertColumnsStr}) 
+    const sql = `INSERT INTO \`${tableName}\` (${escapedColumns}) 
                  VALUES ? 
                  ON DUPLICATE KEY UPDATE ${updatePart}`;
 
     // 4. Prepare the data array for mysql2 bulk insert [[val1, val2], [val1, val2]]
-    // Get current Brasilia time for timestamps
-    const getBrasiliaTimestamp = () => {
-      const formatter = new Intl.DateTimeFormat("pt-BR", {
-        timeZone: "America/Sao_Paulo",
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-      });
-      const parts = formatter.formatToParts(new Date());
-      const date = parts.find(p => p.type === "year").value + "-" +
-                   parts.find(p => p.type === "month").value + "-" +
-                   parts.find(p => p.type === "day").value;
-      const time = parts.find(p => p.type === "hour").value + ":" +
-                   parts.find(p => p.type === "minute").value + ":" +
-                   parts.find(p => p.type === "second").value;
-      return date + " " + time;
-    };
-
-    const brasiliaNow = getBrasiliaTimestamp();
-
     const values = processedRecords.map((rec, idx) => {
       try {
         const rowValues = columns.map((col) => {
@@ -125,29 +98,25 @@ function InsertQuery(tableName, records, clienteId) {
           return val instanceof Date ? val : val;
         });
 
-        // Add createdAt and updatedAt with Brasilia timezone
-        rowValues.push(brasiliaNow);
-        rowValues.push(brasiliaNow);
-
         return rowValues;
       } catch (valErr) {
         throw new Error(
-          `Error extracting values from record ${idx}: ${valErr.message}`
+          `Error extracting values from record ${idx}: ${valErr.message}`,
         );
       }
     });
 
     // Validate: ensure all rows have the correct number of values
     if (values.length > 0) {
-      const expectedLength = insertColumnsList.length; // Now includes createdAt and updatedAt
+      const expectedLength = columns.length;
       for (let i = 0; i < Math.min(values.length, 3); i++) {
         if (values[i].length !== expectedLength) {
           throw new Error(
             `Row ${i} has ${
               values[i].length
-            } values but expected ${expectedLength}. Columns: ${insertColumnsList.join(
-              ", "
-            )}`
+            } values but expected ${expectedLength}. Columns: ${columns.join(
+              ", ",
+            )}`,
           );
         }
       }
@@ -161,7 +130,7 @@ function InsertQuery(tableName, records, clienteId) {
     };
   } catch (err) {
     throw new Error(
-      `InsertQuery error for table '${tableName}': ${err.message}`
+      `InsertQuery error for table '${tableName}': ${err.message}`,
     );
   }
 }
