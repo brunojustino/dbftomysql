@@ -23,6 +23,7 @@ function InsertQuery(tableName, records, clienteId) {
           );
         }
         newRec["cliente_id"] = clienteId;
+        newRec["last_sync"] = new Date();
 
         // If deleted in DBF, set MySQL STATUS to 'I', otherwise keep as is or set 'A'
         if (isDeleted) {
@@ -72,12 +73,46 @@ function InsertQuery(tableName, records, clienteId) {
 
     // Generate the UPSERT part so it updates existing records for that client
     // Don't include createdAt in updates, but ensure updatedAt is set to NOW()
+    // const updatePart = columns
+    //   .filter((col) => col !== "createdAt") // Exclude createdAt from updates
+    //   .map((col) => {
+    //     if (col === "updatedAt") {
+    //       return "`updatedAt` = NOW()";
+    //     }
+    //     return `\`${col}\` = VALUES(\`${col}\`)`;
+    //   })
+    //   .join(", ");
     const updatePart = columns
-      .filter((col) => col !== "createdAt") // Exclude createdAt from updates
+      .filter(
+        (col) => col !== "createdAt" && col !== "id" && col !== "cliente_id",
+      )
       .map((col) => {
         if (col === "updatedAt") {
-          return "`updatedAt` = NOW()";
+          // 1. Identify all "data" columns (exclude keys and timestamps)
+          const dataCols = columns.filter(
+            (c) =>
+              ![
+                "id",
+                "cliente_id",
+                "createdAt",
+                "updatedAt",
+                "last_sync",
+              ].includes(c),
+          );
+
+          // 2. Create a comparison string: (`col1` <> VALUES(`col1`) OR `col2` <> VALUES(`col2`)...)
+          const comparison = dataCols
+            .map((c) => `\`${c}\` <=> VALUES(\`${c}\`) = 0`) // <=> is the NULL-safe equality operator
+            .join(" OR ");
+
+          // 3. Only set NOW() if something in the comparison is true
+          return `\`updatedAt\` = IF(${comparison}, NOW(), \`updatedAt\`)`;
         }
+        if (col === "last_sync") {
+          return "`last_sync` = NOW()";
+        }
+
+        // Standard column update
         return `\`${col}\` = VALUES(\`${col}\`)`;
       })
       .join(", ");

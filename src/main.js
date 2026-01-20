@@ -7,6 +7,7 @@ const ListaToTxt = require("./util/ListaToTxt");
 const ListaProdutosEstoque = require("./reports/ProdutosEstoque");
 const { processFolder } = require("./util/BatchRead");
 const logError = require("./middleware/LogError");
+const { CreateSyncHistoryTable } = require("./db/SyncHistory");
 
 const dbfFolderPath = path.join("C:", "siv");
 const dbfFilePath = path.join("C:", "siv", "produtos.dbf");
@@ -16,6 +17,7 @@ const dbfFilePath = path.join("C:", "siv", "produtos.dbf");
 async function run() {
   const db = await connectToDatabase();
   // const [rows] = await db.execute('SELECT * FROM users WHERE id = ?', [1]);
+  await CreateSyncHistoryTable(db);
   await processFolder(db, dbfFolderPath, 22, logError);
   console.log("Done");
   db.end();

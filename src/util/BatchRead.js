@@ -1,6 +1,8 @@
 const { performance } = require("perf_hooks");
 const path = require("path");
-const fs = require("fs").promises;
+const fs = require("fs"); // Standard fs for sync operations like hashing
+const fsPromises = require("fs").promises;
+const crypto = require("crypto");
 const tableKeys = require("../db/TablesKeys");
 const CreateQuery = require("../db/CreateQuery");
 const CreateTable = require("../db/CreateTable");
@@ -8,6 +10,7 @@ const InsertTable = require("../db/InsertTable");
 const InsertQuery = require("../db/InsertQuery");
 const { getDbfStructure, getDbfRecords } = require("./DbfFuncs");
 const TableNames = require("../db/TableNames");
+const { updateSuccessfulMigration } = require("../db/SyncHistory");
 
 async function createTable(
   db,
@@ -43,12 +46,17 @@ async function insertTable(
   }
 }
 
+function getFileHash(filePath) {
+  const fileBuffer = fs.readFileSync(filePath);
+  return crypto.createHash("md5").update(fileBuffer).digest("hex");
+}
+
 async function processFolder(db, folderPath, idCliente, logError = null) {
   try {
     const start = performance.now(); // Start timer
     console.log("DBF connection established.\n");
     // 1. Get all file names in the folder
-    const files = await fs.readdir(folderPath);
+    const files = await fsPromises.readdir(folderPath);
 
     // 2. Filter for files ending in .dbf (case insensitive)
     const dbfFiles = files.filter((file) => {
@@ -75,6 +83,18 @@ async function processFolder(db, folderPath, idCliente, logError = null) {
           100
         ).toFixed(1);
 
+        // Inside your file loop:
+        const currentHash = getFileHash(fullPath);
+        const [history] = await db.query(
+          "SELECT file_hash FROM sync_history WHERE file_name = ? AND cliente_id = ?",
+          [fileName, idCliente],
+        );
+
+        if (history.length > 0 && history[0].file_hash === currentHash) {
+          console.log(`Skipping ${file} - No changes detected.`);
+          continue;
+        }
+
         const uniqueKey = tableKeys[fileName.toLowerCase()] || null;
         createQuery = await createTable(db, fileName, fullPath, {}, uniqueKey);
 
@@ -97,6 +117,18 @@ async function processFolder(db, folderPath, idCliente, logError = null) {
 
         try {
           await insertTable(db, fileName, insertQuery, onProgress, logError);
+          // After successful insert, update sync history
+          await updateSuccessfulMigration(
+            db,
+            fileName,
+            idCliente,
+            currentHash,
+          ).catch((updateErr) => {
+            console.error(
+              `Failed to update sync history for ${fileName}: ${updateErr.message}`,
+            );
+          });
+          process.stdout.write("\n"); // New line after progress
         } catch (insertError) {
           throw insertError;
         }

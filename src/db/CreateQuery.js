@@ -35,8 +35,8 @@ function CreateQuery(tableName, rawString, overrides = {}, uniqueKey = null) {
           parseInt(decimals) > 0
             ? `DECIMAL(${size}, ${decimals})`
             : parseInt(size) > 9
-            ? `BIGINT`
-            : `INT`;
+              ? `BIGINT`
+              : `INT`;
         break;
       case "D":
         mysqlType = `DATE`;
@@ -71,11 +71,12 @@ function CreateQuery(tableName, rawString, overrides = {}, uniqueKey = null) {
   // Add timestamp fields
   columns.push("  `createdAt` TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
   columns.push(
-    "  `updatedAt` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
+    "  `updatedAt` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP",
   );
+  columns.push("  `last_sync` DATETIME");
 
   return `CREATE TABLE IF NOT EXISTS \`${tableName}\` (\n${columns.join(
-    ",\n"
+    ",\n",
   )}\n) ENGINE=InnoDB;`;
 }
 

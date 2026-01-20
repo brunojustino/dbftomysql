@@ -12,7 +12,7 @@ async function connectToDatabase() {
       connectionLimit: 10,
       queueLimit: 0,
       enableKeepAlive: true,
-      timezone: "America/Sao_Paulo",
+      timezone: "-03:00",
     });
 
     console.log("Successfully connected to MySQL Pool!");
