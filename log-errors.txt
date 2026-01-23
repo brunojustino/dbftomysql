@@ -1,0 +1,115 @@
+[2026-01-22 08:57:10] Error processing file 'clientes.dbf': Unknown database 'proinfo_dbfs_test'
+[2026-01-22 08:57:10] Error processing file 'empresa.dbf': Unknown database 'proinfo_dbfs_test'
+[2026-01-22 08:57:10] Error processing file 'fornece.dbf': Unknown database 'proinfo_dbfs_test'
+[2026-01-22 08:57:11] Error processing file 'mvncp.dbf': Unknown database 'proinfo_dbfs_test'
+[2026-01-22 08:57:11] Error processing file 'mvncr.dbf': Unknown database 'proinfo_dbfs_test'
+[2026-01-22 08:57:11] Error processing file 'ncp.dbf': Unknown database 'proinfo_dbfs_test'
+[2026-01-22 08:57:11] Error processing file 'ncr.dbf': Unknown database 'proinfo_dbfs_test'
+[2026-01-22 08:57:12] Error processing file 'PRODUTOS.DBF': Unknown database 'proinfo_dbfs_test'
+[2026-01-22 08:57:12] Error processing file 'SECAO.DBF': Unknown database 'proinfo_dbfs_test'
+[2026-01-22 09:04:40] Error processing file 'clientes.dbf': Access denied for user 'root'@'fd9e:4404:9d55::c' (using password: YES)
+[2026-01-22 09:04:41] Error processing file 'empresa.dbf': Access denied for user 'root'@'10.0.1.12' (using password: YES)
+[2026-01-22 09:04:41] Error processing file 'fornece.dbf': Access denied for user 'root'@'fd9e:4404:9d55::c' (using password: YES)
+[2026-01-22 09:04:41] Error processing file 'mvncp.dbf': Access denied for user 'root'@'10.0.1.12' (using password: YES)
+[2026-01-22 09:04:41] Error processing file 'mvncr.dbf': Access denied for user 'root'@'fd9e:4404:9d55::c' (using password: YES)
+[2026-01-22 09:04:42] Error processing file 'ncp.dbf': Access denied for user 'root'@'10.0.1.12' (using password: YES)
+[2026-01-22 09:04:42] Error processing file 'ncr.dbf': Access denied for user 'root'@'fd9e:4404:9d55::c' (using password: YES)
+[2026-01-22 09:04:42] Error processing file 'PRODUTOS.DBF': Access denied for user 'root'@'10.0.1.12' (using password: YES)
+[2026-01-22 09:04:42] Error processing file 'SECAO.DBF': Access denied for user 'root'@'fd9e:4404:9d55::c' (using password: YES)
+[2026-01-23 16:09:55] Error processing file 'ALMOX.DBF': Cannot access 'onProgress' before initialization
+[2026-01-23 16:09:55] Error processing file 'CFOPS.DBF': Cannot access 'onProgress' before initialization
+[2026-01-23 16:09:55] Error processing file 'clientes.dbf': Cannot access 'onProgress' before initialization
+[2026-01-23 16:09:55] Error processing file 'empresa.dbf': Cannot access 'onProgress' before initialization
+[2026-01-23 16:09:55] Error processing file 'fornece.dbf': Cannot access 'onProgress' before initialization
+[2026-01-23 16:09:55] Error processing file 'mvncp.dbf': Cannot access 'onProgress' before initialization
+[2026-01-23 16:09:55] Error processing file 'mvncr.dbf': Cannot access 'onProgress' before initialization
+[2026-01-23 16:09:55] Error processing file 'ncp.dbf': Cannot access 'onProgress' before initialization
+[2026-01-23 16:09:55] Error processing file 'ncr.dbf': Cannot access 'onProgress' before initialization
+[2026-01-23 16:09:55] Error processing file 'PRODUTOS.DBF': Cannot access 'onProgress' before initialization
+[2026-01-23 16:09:55] Error processing file 'SECAO.DBF': Cannot access 'onProgress' before initialization
+[2026-01-23 16:24:42] InsertTable failed: Table 'proinfo_dbfs_test.BANCOS' doesn't exist
+[2026-01-23 16:24:42] Error processing file 'BANCOS.DBF': InsertTable failed: Table 'proinfo_dbfs_test.BANCOS' doesn't exist
+--- CREATE QUERY ---
+CREATE TABLE IF NOT EXISTS `BANCOS` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  `cliente_id` INT NOT NULL,
+  `CODIGO` INT,
+  `AGENCIA` INT,
+  `CONTA` BIGINT,
+  `NOME` VARCHAR(40),
+  `INSTRUCAO1` VARCHAR(40),
+  `INSTRUCAO2` VARCHAR(40),
+  `JUROS_MES` DECIMAL(6, 3),
+  `MULTA_MES` DECIMAL(6, 3),
+  `DESC_VENC` DECIMAL(6, 3),
+  `DESP_ADIC` DECIMAL(7, 2),
+  `INC_DESP` VARCHAR(1),
+  `MOD_BLOQ` INT,
+  `LAYOUT` VARCHAR(10),
+  `DIGNNUM` INT,
+  `LOC_PAG` VARCHAR(60),
+  `TIPOTEF` VARCHAR(15),
+  `TAXA_PRE` DECIMAL(6, 3),
+  `CODCONV` VARCHAR(20),
+  `CORRENT` VARCHAR(40),
+  `CNPJ_CPF` VARCHAR(14),
+  `CARTEIRA` VARCHAR(2),
+  `NSA` BIGINT,
+  `VERSAO` VARCHAR(2),
+  `IDENTSERV` VARCHAR(3),
+  `TPSERV` VARCHAR(3),
+  `TPMOEDA` VARCHAR(2),
+  `SIMBMOEDA` VARCHAR(3),
+  `ESPECIE` VARCHAR(2),
+  `ACEITE` VARCHAR(1),
+  `CRE01` DECIMAL(14, 2),
+  `DEB01` DECIMAL(14, 2),
+  `CRE02` DECIMAL(14, 2),
+  `DEB02` DECIMAL(14, 2),
+  `CRE03` DECIMAL(14, 2),
+  `DEB03` DECIMAL(14, 2),
+  `CRE04` DECIMAL(14, 2),
+  `DEB04` DECIMAL(14, 2),
+  `CRE05` DECIMAL(14, 2),
+  `DEB05` DECIMAL(14, 2),
+  `CRE06` DECIMAL(14, 2),
+  `DEB06` DECIMAL(14, 2),
+  `CRE07` DECIMAL(14, 2),
+  `DEB07` DECIMAL(14, 2),
+  `CRE08` DECIMAL(14, 2),
+  `DEB08` DECIMAL(14, 2),
+  `CRE09` DECIMAL(14, 2),
+  `DEB09` DECIMAL(14, 2),
+  `CRE10` DECIMAL(14, 2),
+  `DEB10` DECIMAL(14, 2),
+  `CRE11` DECIMAL(14, 2),
+  `DEB11` DECIMAL(14, 2),
+  `CRE12` DECIMAL(14, 2),
+  `DEB12` DECIMAL(14, 2),
+  `SALDOANT` DECIMAL(16, 2),
+  `STATUS` VARCHAR(1),
+  `TPCOBR` VARCHAR(5),
+  `LAYOUTRET` VARCHAR(10),
+  `NSU_TX` BIGINT,
+  `PIX` VARCHAR(44),
+  `CNPJBANCO` VARCHAR(14),
+  `AMB` VARCHAR(1),
+  `APP` VARCHAR(100),
+  `ID` VARCHAR(200),
+  `S1` VARCHAR(200),
+  `S2` VARCHAR(200),
+  `CHK` VARCHAR(5),
+  `TIPOPIX` VARCHAR(1),
+  `APP_VER` VARCHAR(3),
+  `createdAt` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updatedAt` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `last_sync` DATETIME
+) ENGINE=InnoDB;
+--- INSERT QUERY ---
+INSERT INTO `BANCOS` (`CODIGO`, `AGENCIA`, `CONTA`, `NOME`, `INSTRUCAO1`, `INSTRUCAO2`, `JUROS_MES`, `MULTA_MES`, `DESC_VENC`, `DESP_ADIC`, `INC_DESP`, `MOD_BLOQ`, `LAYOUT`, `DIGNNUM`, `LOC_PAG`, `TIPOTEF`, `TAXA_PRE`, `CODCONV`, `CORRENT`, `CNPJ_CPF`, `CARTEIRA`, `NSA`, `VERSAO`, `IDENTSERV`, `TPSERV`, `TPMOEDA`, `SIMBMOEDA`, `ESPECIE`, `ACEITE`, `CRE01`, `DEB01`, `CRE02`, `DEB02`, `CRE03`, `DEB03`, `CRE04`, `DEB04`, `CRE05`, `DEB05`, `CRE06`, `DEB06`, `CRE07`, `DEB07`, `CRE08`, `DEB08`, `CRE09`, `DEB09`, `CRE10`, `DEB10`, `CRE11`, `DEB11`, `CRE12`, `DEB12`, `SALDOANT`, `STATUS`, `TPCOBR`, `LAYOUTRET`, `NSU_TX`, `PIX`, `CNPJBANCO`, `AMB`, `APP`, `ID`, `S1`, `S2`, `CHK`, `TIPOPIX`, `APP_VER`, `cliente_id`, `last_sync`) 
+                 VALUES ? 
+                 ON DUPLICATE KEY UPDATE `CODIGO` = VALUES(`CODIGO`), `AGENCIA` = VALUES(`AGENCIA`), `CONTA` = VALUES(`CONTA`), `NOME` = VALUES(`NOME`), `INSTRUCAO1` = VALUES(`INSTRUCAO1`), `INSTRUCAO2` = VALUES(`INSTRUCAO2`), `JUROS_MES` = VALUES(`JUROS_MES`), `MULTA_MES` = VALUES(`MULTA_MES`), `DESC_VENC` = VALUES(`DESC_VENC`), `DESP_ADIC` = VALUES(`DESP_ADIC`), `INC_DESP` = VALUES(`INC_DESP`), `MOD_BLOQ` = VALUES(`MOD_BLOQ`), `LAYOUT` = VALUES(`LAYOUT`), `DIGNNUM` = VALUES(`DIGNNUM`), `LOC_PAG` = VALUES(`LOC_PAG`), `TIPOTEF` = VALUES(`TIPOTEF`), `TAXA_PRE` = VALUES(`TAXA_PRE`), `CODCONV` = VALUES(`CODCONV`), `CORRENT` = VALUES(`CORRENT`), `CNPJ_CPF` = VALUES(`CNPJ_CPF`), `CARTEIRA` = VALUES(`CARTEIRA`), `NSA` = VALUES(`NSA`), `VERSAO` = VALUES(`VERSAO`), `IDENTSERV` = VALUES(`IDENTSERV`), `TPSERV` = VALUES(`TPSERV`), `TPMOEDA` = VALUES(`TPMOEDA`), `SIMBMOEDA` = VALUES(`SIMBMOEDA`), `ESPECIE` = VALUES(`ESPECIE`), `ACEITE` = VALUES(`ACEITE`), `CRE01` = VALUES(`CRE01`), `DEB01` = VALUES(`DEB01`), `CRE02` = VALUES(`CRE02`), `DEB02` = VALUES(`DEB02`), `CRE03` = VALUES(`CRE03`), `DEB03` = VALUES(`DEB03`), `CRE04` = VALUES(`CRE04`), `DEB04` = VALUES(`DEB04`), `CRE05` = VALUES(`CRE05`), `DEB05` = VALUES(`DEB05`), `CRE06` = VALUES(`CRE06`), `DEB06` = VALUES(`DEB06`), `CRE07` = VALUES(`CRE07`), `DEB07` = VALUES(`DEB07`), `CRE08` = VALUES(`CRE08`), `DEB08` = VALUES(`DEB08`), `CRE09` = VALUES(`CRE09`), `DEB09` = VALUES(`DEB09`), `CRE10` = VALUES(`CRE10`), `DEB10` = VALUES(`DEB10`), `CRE11` = VALUES(`CRE11`), `DEB11` = VALUES(`DEB11`), `CRE12` = VALUES(`CRE12`), `DEB12` = VALUES(`DEB12`), `SALDOANT` = VALUES(`SALDOANT`), `STATUS` = VALUES(`STATUS`), `TPCOBR` = VALUES(`TPCOBR`), `LAYOUTRET` = VALUES(`LAYOUTRET`), `NSU_TX` = VALUES(`NSU_TX`), `PIX` = VALUES(`PIX`), `CNPJBANCO` = VALUES(`CNPJBANCO`), `AMB` = VALUES(`AMB`), `APP` = VALUES(`APP`), `ID` = VALUES(`ID`), `S1` = VALUES(`S1`), `S2` = VALUES(`S2`), `CHK` = VALUES(`CHK`), `TIPOPIX` = VALUES(`TIPOPIX`), `APP_VER` = VALUES(`APP_VER`), `last_sync` = NOW()
+--- COLUMNS ATTEMPTED ---
+CODIGO, AGENCIA, CONTA, NOME, INSTRUCAO1, INSTRUCAO2, JUROS_MES, MULTA_MES, DESC_VENC, DESP_ADIC, INC_DESP, MOD_BLOQ, LAYOUT, DIGNNUM, LOC_PAG, TIPOTEF, TAXA_PRE, CODCONV, CORRENT, CNPJ_CPF, CARTEIRA, NSA, VERSAO, IDENTSERV, TPSERV, TPMOEDA, SIMBMOEDA, ESPECIE, ACEITE, CRE01, DEB01, CRE02, DEB02, CRE03, DEB03, CRE04, DEB04, CRE05, DEB05, CRE06, DEB06, CRE07, DEB07, CRE08, DEB08, CRE09, DEB09, CRE10, DEB10, CRE11, DEB11, CRE12, DEB12, SALDOANT, STATUS, TPCOBR, LAYOUTRET, NSU_TX, PIX, CNPJBANCO, AMB, APP, ID, S1, S2, CHK, TIPOPIX, APP_VER, cliente_id, last_sync
+--- INSERT VALUES COUNT ---
+5 records

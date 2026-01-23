@@ -51,7 +51,13 @@ function getFileHash(filePath) {
   return crypto.createHash("md5").update(fileBuffer).digest("hex");
 }
 
-async function processFolder(db, folderPath, idCliente, logError = null) {
+async function processFolder(
+  db,
+  folderPath,
+  idCliente,
+  logError = null,
+  progressCallback,
+) {
   try {
     const start = performance.now(); // Start timer
     console.log("DBF connection established.\n");
@@ -78,6 +84,8 @@ async function processFolder(db, folderPath, idCliente, logError = null) {
         const fileName = file.substring(0, file.length - 4);
 
         processedCount++;
+        if (progressCallback)
+          progressCallback(`Processando arquivo: ${fileName}`);
         const overallPercentage = (
           (processedCount / dbfFiles.length) *
           100
@@ -92,6 +100,8 @@ async function processFolder(db, folderPath, idCliente, logError = null) {
 
         if (history.length > 0 && history[0].file_hash === currentHash) {
           console.log(`Skipping ${file} - No changes detected.`);
+          if (progressCallback)
+            progressCallback(`Skipping ${file} - No changes detected.`);
           continue;
         }
 
@@ -105,6 +115,10 @@ async function processFolder(db, folderPath, idCliente, logError = null) {
           process.stdout.write(
             `\r[Overall: ${overallPercentage}%] [File: ${filePercentage}%] Inserting records: ${current}/${total}`,
           );
+          if (progressCallback)
+            progressCallback(
+              `\r[Overall: ${overallPercentage}%] [File: ${filePercentage}%] Inserting records: ${current}/${total}`,
+            );
         };
 
         // Get records and create insert query
@@ -127,6 +141,10 @@ async function processFolder(db, folderPath, idCliente, logError = null) {
             console.error(
               `Failed to update sync history for ${fileName}: ${updateErr.message}`,
             );
+            if (progressCallback)
+              progressCallback(
+                `Failed to update sync history for ${fileName}: ${updateErr.message}`,
+              );
           });
           process.stdout.write("\n"); // New line after progress
         } catch (insertError) {
@@ -135,6 +153,7 @@ async function processFolder(db, folderPath, idCliente, logError = null) {
       } catch (tableError) {
         // Log error with queries and continue with next file
         let errorDetails = `Error processing file '${file}': ${tableError.message}`;
+        if (progressCallback) progressCallback(errorDetails);
 
         if (createQuery) {
           errorDetails += `\n--- CREATE QUERY ---\n${createQuery}`;

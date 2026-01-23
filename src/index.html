@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DBF to MySQL - Proinfo</title>
+    <style>
+        body { font-family: sans-serif; background: #f4f4f9; padding: 20px; }
+        .container { max-width: 700px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .terminal { 
+            background: #1e1e1e; color: #00ff00; padding: 15px; 
+            height: 300px; overflow-y: auto; border-radius: 4px; 
+            font-family: 'Courier New', Courier, monospace; font-size: 13px;
+        }
+        .controls { margin-bottom: 20px; display: flex; gap: 10px; align-items: center; }
+        button { padding: 10px 15px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 4px; }
+        button:hover { background: #0056b3; }
+        .status-bar { margin-top: 10px; font-size: 12px; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Sincronização DBF ➔ MySQL</h2>
+        
+        <div class="controls">
+            <label for="clientIdInput">ID do Cliente:</label>
+            <input type="number" id="clientIdInput" value="1" style="width: 60px; padding: 5px;">
+
+            <button id="selectFolder">Selecionar Pasta</button>
+            <span id="folderPath">Nenhuma pasta selecionada</span>
+        </div>
+
+        <button id="startBtn" style="width: 100%; background: #28a745;">Iniciar Migração</button>
+
+        <p>Log de Operações:</p>
+        <div id="terminal" class="terminal">
+            Pronto para iniciar...
+        </div>
+        
+        <div class="status-bar" id="statusBar">Aguardando ação do usuário.</div>
+    </div>
+
+    <script>
+        const terminal = document.getElementById('terminal');
+        const folderSpan = document.getElementById('folderPath');
+        let selectedPath = '';
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            // Ask the main process for the saved path
+            const savedPath = await window.electronAPI.getLastPath();
+            selectedPath = savedPath;
+            document.getElementById('folderPath').textContent = savedPath;
+            const savedClientId = await window.electronAPI.getLastClient();
+            document.getElementById('clientIdInput').value = savedClientId;
+        });
+
+        // Function to add lines to our "Terminal"
+        function log(message) {
+            const line = document.createElement('div');
+            line.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            terminal.appendChild(line);
+            terminal.scrollTop = terminal.scrollHeight; // Auto-scroll to bottom
+            if( message.toLowerCase().includes("concluído") ) {
+                document.getElementById('statusBar').textContent = "Migração concluída com sucesso.";
+            }
+        }
+
+        document.getElementById('selectFolder').addEventListener('click', async () => {
+            selectedPath = await window.electronAPI.selectFolder();
+            if (selectedPath) folderSpan.textContent = selectedPath;
+        });
+
+        document.getElementById('startBtn').addEventListener('click', () => {
+            const clientId = document.getElementById('clientIdInput').value;
+
+            if (!selectedPath) {
+                alert("Por favor, selecione uma pasta primeiro.");
+                return;
+            }
+
+            if (!clientId) {
+                alert("Por favor, insira o ID do Cliente.");
+                return;
+    }
+            terminal.innerHTML = ''; // Clear terminal
+            log(`Iniciando processo para Cliente ID: ${clientId}...`);
+            window.electronAPI.startMigration(selectedPath, clientId);
+        });
+
+        // Listen for progress updates from the Main Process
+        window.electronAPI.onProgress((message) => {
+            log(message);  
+        });
+    </script>
+</body>
+</html>
