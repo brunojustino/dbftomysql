@@ -20,7 +20,7 @@
 </head>
 <body>
     <div class="container">
-        <h2>Sincronização DBF ➔ MySQL</h2>
+        <h2>Proinfo Sync</h2>
         
         <div class="controls">
             <label for="clientIdInput">ID do Cliente:</label>
@@ -38,6 +38,7 @@
         </div>
         
         <div class="status-bar" id="statusBar">Aguardando ação do usuário.</div>
+        <button id="logBtn" style="background: #6c757d;">Abrir Pasta de Logs</button>
     </div>
 
     <script>
@@ -48,9 +49,9 @@
         window.addEventListener('DOMContentLoaded', async () => {
             // Ask the main process for the saved path
             const savedPath = await window.electronAPI.getLastPath();
+            const savedClientId = await window.electronAPI.getLastClient();
             selectedPath = savedPath;
             document.getElementById('folderPath').textContent = savedPath;
-            const savedClientId = await window.electronAPI.getLastClient();
             document.getElementById('clientIdInput').value = savedClientId;
         });
 
@@ -90,6 +91,10 @@
         // Listen for progress updates from the Main Process
         window.electronAPI.onProgress((message) => {
             log(message);  
+        });
+
+        document.getElementById('logBtn').addEventListener('click', () => {
+            window.electronAPI.openLogs(); 
         });
     </script>
 </body>

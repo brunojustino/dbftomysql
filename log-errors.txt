@@ -113,3 +113,17 @@ INSERT INTO `BANCOS` (`CODIGO`, `AGENCIA`, `CONTA`, `NOME`, `INSTRUCAO1`, `INSTR
 CODIGO, AGENCIA, CONTA, NOME, INSTRUCAO1, INSTRUCAO2, JUROS_MES, MULTA_MES, DESC_VENC, DESP_ADIC, INC_DESP, MOD_BLOQ, LAYOUT, DIGNNUM, LOC_PAG, TIPOTEF, TAXA_PRE, CODCONV, CORRENT, CNPJ_CPF, CARTEIRA, NSA, VERSAO, IDENTSERV, TPSERV, TPMOEDA, SIMBMOEDA, ESPECIE, ACEITE, CRE01, DEB01, CRE02, DEB02, CRE03, DEB03, CRE04, DEB04, CRE05, DEB05, CRE06, DEB06, CRE07, DEB07, CRE08, DEB08, CRE09, DEB09, CRE10, DEB10, CRE11, DEB11, CRE12, DEB12, SALDOANT, STATUS, TPCOBR, LAYOUTRET, NSU_TX, PIX, CNPJBANCO, AMB, APP, ID, S1, S2, CHK, TIPOPIX, APP_VER, cliente_id, last_sync
 --- INSERT VALUES COUNT ---
 5 records
+[2026-01-24 10:14:23] Could not process folder: ENOENT: no such file or directory, scandir 'E:\codes\js\dbfreader2\22'
+[2026-01-24 10:35:47] Could not process folder: ENOENT: no such file or directory, scandir 'E:\codes\js\dbfreader2\22'
+[2026-01-24 10:37:53] Could not process folder: ENOENT: no such file or directory, scandir 'E:\codes\js\dbfreader2\22'
+[2026-01-24 10:38:53] Could not process folder: ENOENT: no such file or directory, scandir 'E:\codes\js\dbfreader2\22'
+[2026-01-24 10:39:53] Could not process folder: ENOENT: no such file or directory, scandir 'E:\codes\js\dbfreader2\22'
+[2026-01-24 10:40:53] Could not process folder: ENOENT: no such file or directory, scandir 'E:\codes\js\dbfreader2\22'
+[2026-01-24 10:41:53] Could not process folder: ENOENT: no such file or directory, scandir 'E:\codes\js\dbfreader2\22'
+[2026-01-24 10:44:23] Could not process folder: ENOENT: no such file or directory, scandir 'E:\codes\js\dbfreader2\22'
+[2026-01-24 10:45:23] Could not process folder: ENOENT: no such file or directory, scandir 'E:\codes\js\dbfreader2\22'
+[2026-01-24 10:46:23] Could not process folder: ENOENT: no such file or directory, scandir 'E:\codes\js\dbfreader2\22'
+[2026-01-24 10:47:23] Could not process folder: ENOENT: no such file or directory, scandir 'E:\codes\js\dbfreader2\22'
+[2026-01-24 10:48:23] Could not process folder: ENOENT: no such file or directory, scandir 'E:\codes\js\dbfreader2\22'
+[2026-01-24 10:49:23] Could not process folder: ENOENT: no such file or directory, scandir 'E:\codes\js\dbfreader2\22'
+[2026-01-24 10:50:23] Could not process folder: ENOENT: no such file or directory, scandir 'E:\codes\js\dbfreader2\22'

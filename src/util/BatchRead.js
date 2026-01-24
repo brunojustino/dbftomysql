@@ -11,6 +11,7 @@ const InsertQuery = require("../db/InsertQuery");
 const { getDbfStructure, getDbfRecords } = require("./DbfFuncs");
 const TableNames = require("../db/TableNames");
 const { updateSuccessfulMigration } = require("../db/SyncHistory");
+const logger = require("../util/logger");
 
 async function createTable(
   db,
@@ -42,6 +43,7 @@ async function insertTable(
   try {
     await InsertTable(db, tableName, query, onProgress, logError);
   } catch (err) {
+    logger.error(`InsertTable Error: ${err.message}`);
     throw err;
   }
 }
@@ -86,6 +88,7 @@ async function processFolder(
         processedCount++;
         if (progressCallback)
           progressCallback(`Processando arquivo: ${fileName}`);
+        logger.info(`Processando arquivo: ${fileName}`);
         const overallPercentage = (
           (processedCount / dbfFiles.length) *
           100
@@ -125,6 +128,7 @@ async function processFolder(
         try {
           records = await getDbfRecords(fullPath);
         } catch (recErr) {
+          logger.error(`Failed to read records: ${recErr.message}`);
           throw new Error(`Failed to read records: ${recErr.message}`);
         }
         insertQuery = InsertQuery(fileName, records, idCliente);
@@ -138,6 +142,9 @@ async function processFolder(
             idCliente,
             currentHash,
           ).catch((updateErr) => {
+            logger.error(
+              `Failed to update sync history for ${fileName}: ${updateErr.message}`,
+            );
             console.error(
               `Failed to update sync history for ${fileName}: ${updateErr.message}`,
             );
@@ -148,11 +155,13 @@ async function processFolder(
           });
           process.stdout.write("\n"); // New line after progress
         } catch (insertError) {
+          logger.error(`Inser Error ${fileName}: ${insertError.message}`);
           throw insertError;
         }
       } catch (tableError) {
         // Log error with queries and continue with next file
         let errorDetails = `Error processing file '${file}': ${tableError.message}`;
+
         if (progressCallback) progressCallback(errorDetails);
 
         if (createQuery) {
@@ -196,11 +205,14 @@ async function processFolder(
           errorDetails += `\n--- INSERT VALUES COUNT ---\n${records.length} records`;
         }
 
+        logger.error(errorDetails);
+
         await logError(errorDetails);
       }
     }
     const end = performance.now(); // End timer
     const seconds = (end - start) / 1000;
+    logger.info(`Processo finalizado em: ${seconds.toFixed(2)} segundos.`);
   } catch (err) {
     const errorMessage = `Could not process folder: ${err.message}`;
     await logError(errorMessage);

@@ -1,8 +1,18 @@
-const { app, BrowserWindow, Tray, Menu, ipcMain, dialog } = require("electron");
+const {
+  app,
+  BrowserWindow,
+  Tray,
+  Menu,
+  ipcMain,
+  dialog,
+  shell,
+} = require("electron");
+
 const path = require("path");
 const Store = require("electron-store");
 // Import your existing logic
 const { runMigration } = require("./dbttosql");
+const logger = require("./util/logger");
 
 const store = new Store();
 
@@ -65,6 +75,11 @@ ipcMain.on("migration:start", async (event, { folderPath, clientId }) => {
   }
 });
 
+ipcMain.on("open-logs", () => {
+  // This opens the folder in Windows Explorer and highlights the file
+  shell.showItemInFolder(logger.getLogPath());
+});
+
 function createTray() {
   // Replace 'icon.png' with your actual icon file path
   const iconPath = path.join(__dirname, "assets", "proinfo logo 333.png");
@@ -100,22 +115,40 @@ app.whenReady().then(() => {
   createWindow();
   createTray();
 
-  setInterval(
-    async () => {
-      const lastPath = store.get("lastPath");
-      const lastClient = store.get("lastClient");
+  const runAutoSync = async () => {
+    const lastPath = store.get("lastPath");
+    const rawClient = store.get("lastClient");
+    const lastClient = parseInt(rawClient, 10);
 
-      if (lastPath && lastClient) {
-        console.log("Iniciando sincronização automática...");
-        await runMigration(lastClient, lastPath, (msg) => {
-          // Log to terminal if window is open
-          if (mainWindow)
-            mainWindow.webContents.send("migration:progress", `[AUTO] ${msg}`);
+    if (lastPath && !isNaN(lastClient)) {
+      console.log(
+        `[AUTO] Iniciando para Cliente ID: ${lastClient} na pasta: ${lastPath}`,
+      );
+      try {
+        await runMigration(lastPath, lastClient, (message) => {
+          // Safety check before sending to UI
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send(
+              "migration:progress",
+              `[AUTO] ${message}`,
+            );
+          }
         });
+        console.log("Sincronização automática finalizada.");
+        logger.info(
+          `Sincronização automática finalizada para Cliente ID: ${lastClient} na pasta: ${lastPath}`,
+        );
+      } catch (err) {
+        console.error("Erro na sincronização automática:", err);
+        logger.error(`Erro na migração: ${err.stack}`);
       }
-    },
-    30 * 60 * 1000,
-  ); // Every 30 minutes
+    } else {
+      console.log("Sincronização automática pulada: Faltam configurações.");
+    }
+  };
+
+  // 3. Set the interval for every 30 minutes thereafter
+  setInterval(runAutoSync, 30 * 60 * 1000);
 });
 
 // Ensure the app doesn't quit when all windows are closed
