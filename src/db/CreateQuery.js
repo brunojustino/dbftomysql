@@ -4,7 +4,13 @@
  * @param {Object} overrides - Optional size overrides { FIELD_NAME: newSize }
  * @param {string|string[]|null} uniqueKey - Pass an array for composite keys
  */
-function CreateQuery(tableName, rawString, overrides = {}, uniqueKey = null) {
+function CreateQuery(
+  tableName,
+  rawString,
+  overrides = {},
+  uniqueKey = null,
+  logger,
+) {
   const fields = rawString.split(", ");
 
   // Management fields for your multi-tenant setup
@@ -75,9 +81,13 @@ function CreateQuery(tableName, rawString, overrides = {}, uniqueKey = null) {
   );
   columns.push("  `last_sync` DATETIME");
 
-  return `CREATE TABLE IF NOT EXISTS \`${tableName}\` (\n${columns.join(
+  const result = `CREATE TABLE IF NOT EXISTS \`${tableName}\` (\n${columns.join(
     ",\n",
   )}\n) ENGINE=InnoDB;`;
+
+  logger.info(`Create Table Query for ${tableName}:\n${result}`);
+
+  return result;
 }
 
 module.exports = CreateQuery;

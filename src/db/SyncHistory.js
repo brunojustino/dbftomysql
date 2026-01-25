@@ -9,7 +9,7 @@ const createSyncQuery = `
   ) ENGINE=InnoDB;
 `;
 
-async function CreateSyncHistoryTable(db) {
+async function CreateSyncHistoryTable(db, logger) {
   try {
     // 1. Check if table exists in the current database
     const [tables] = await db.execute(`SHOW TABLES LIKE 'sync_history'`);
@@ -25,6 +25,7 @@ async function CreateSyncHistoryTable(db) {
     }
   } catch (err) {
     console.error("Critical error in CreateTable:", err.message);
+    logger.error(`Critical error in CreateTable: ${err.message}`);
   }
 }
 
@@ -34,11 +35,16 @@ async function CreateSyncHistoryTable(db) {
 
 // Update the hash after successful migration
 async function updateSuccessfulMigration(db, file, clientId, currentHash) {
-  await db.query(
-    `INSERT INTO sync_history (file_name, cliente_id, file_hash, last_processed) 
+  try {
+    await db.query(
+      `INSERT INTO sync_history (file_name, cliente_id, file_hash, last_processed) 
         VALUES (?, ?, ?, NOW()) ON DUPLICATE KEY UPDATE file_hash = VALUES(file_hash), last_processed = NOW()`,
-    [file, clientId, currentHash],
-  );
+      [file, clientId, currentHash],
+    );
+  } catch (err) {
+    console.error("Failed to update sync history:", err.message);
+    logger.error(`Failed to update sync history: ${err.message}`);
+  }
 }
 
 module.exports = { CreateSyncHistoryTable, updateSuccessfulMigration };

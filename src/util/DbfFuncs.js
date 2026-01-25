@@ -10,7 +10,7 @@ async function getDbfStructure(filePath) {
 
 async function getDbfRecords(filePath) {
   let dbf = await DBFFile.open(filePath);
-  let records = await dbf.readRecords(); // batch-reads up to 100 records, returned as an array
+  let records = await dbf.readRecords();
   return records;
 }
 

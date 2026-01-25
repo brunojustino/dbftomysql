@@ -11,7 +11,6 @@ const InsertQuery = require("../db/InsertQuery");
 const { getDbfStructure, getDbfRecords } = require("./DbfFuncs");
 const TableNames = require("../db/TableNames");
 const { updateSuccessfulMigration } = require("../db/SyncHistory");
-const logger = require("../util/logger");
 
 async function createTable(
   db,
@@ -19,6 +18,7 @@ async function createTable(
   fullPath,
   overrides = {},
   uniqueKey = null,
+  logger,
 ) {
   const structure = await getDbfStructure(fullPath);
   // const overrides = { DESCRICAO: 120 };
@@ -27,24 +27,25 @@ async function createTable(
     structure,
     overrides,
     uniqueKey,
+    logger,
   );
   // console.log("Create Table Query:\n" + createQueryString);
-  await CreateTable(db, tableName, createQueryString, structure, overrides);
+  await CreateTable(
+    db,
+    tableName,
+    createQueryString,
+    structure,
+    overrides,
+    logger,
+  );
   return createQueryString;
 }
 
-async function insertTable(
-  db,
-  tableName,
-  query,
-  onProgress = null,
-  logError = null,
-) {
+async function insertTable(db, tableName, query, onProgress = null, logger) {
   try {
-    await InsertTable(db, tableName, query, onProgress, logError);
+    await InsertTable(db, tableName, query, onProgress, logger);
   } catch (err) {
     logger.error(`InsertTable Error: ${err.message}`);
-    throw err;
   }
 }
 
@@ -57,14 +58,21 @@ async function processFolder(
   db,
   folderPath,
   idCliente,
-  logError = null,
+  logger,
   progressCallback,
 ) {
   try {
     const start = performance.now(); // Start timer
     console.log("DBF connection established.\n");
     // 1. Get all file names in the folder
-    const files = await fsPromises.readdir(folderPath);
+    let files;
+    try {
+      files = await fsPromises.readdir(folderPath);
+    } catch (readErr) {
+      const errorMessage = `Failed to read directory: ${readErr.message}`;
+      logger.error(errorMessage);
+      throw new Error(errorMessage);
+    }
 
     // 2. Filter for files ending in .dbf (case insensitive)
     const dbfFiles = files.filter((file) => {
@@ -96,20 +104,33 @@ async function processFolder(
 
         // Inside your file loop:
         const currentHash = getFileHash(fullPath);
-        const [history] = await db.query(
-          "SELECT file_hash FROM sync_history WHERE file_name = ? AND cliente_id = ?",
-          [fileName, idCliente],
-        );
+        try {
+          const [history] = await db.query(
+            "SELECT file_hash FROM sync_history WHERE file_name = ? AND cliente_id = ?",
+            [fileName, idCliente],
+          );
 
-        if (history.length > 0 && history[0].file_hash === currentHash) {
-          console.log(`Skipping ${file} - No changes detected.`);
-          if (progressCallback)
-            progressCallback(`Skipping ${file} - No changes detected.`);
-          continue;
+          if (history.length > 0 && history[0].file_hash === currentHash) {
+            console.log(`Skipping ${file} - No changes detected.`);
+            if (progressCallback)
+              progressCallback(`Skipping ${file} - No changes detected.`);
+            continue;
+          }
+        } catch (hashErr) {
+          logger.error(
+            `Failed to fetch sync history for ${fileName}: ${hashErr.message}`,
+          );
         }
 
         const uniqueKey = tableKeys[fileName.toLowerCase()] || null;
-        createQuery = await createTable(db, fileName, fullPath, {}, uniqueKey);
+        createQuery = await createTable(
+          db,
+          fileName,
+          fullPath,
+          {},
+          uniqueKey,
+          logger,
+        );
 
         // Progress callback for individual file records
         const onProgress = (current, total) => {
@@ -129,12 +150,11 @@ async function processFolder(
           records = await getDbfRecords(fullPath);
         } catch (recErr) {
           logger.error(`Failed to read records: ${recErr.message}`);
-          throw new Error(`Failed to read records: ${recErr.message}`);
         }
         insertQuery = InsertQuery(fileName, records, idCliente);
 
         try {
-          await insertTable(db, fileName, insertQuery, onProgress, logError);
+          await insertTable(db, fileName, insertQuery, onProgress, logger);
           // After successful insert, update sync history
           await updateSuccessfulMigration(
             db,
@@ -156,13 +176,10 @@ async function processFolder(
           process.stdout.write("\n"); // New line after progress
         } catch (insertError) {
           logger.error(`Inser Error ${fileName}: ${insertError.message}`);
-          throw insertError;
         }
       } catch (tableError) {
         // Log error with queries and continue with next file
         let errorDetails = `Error processing file '${file}': ${tableError.message}`;
-
-        if (progressCallback) progressCallback(errorDetails);
 
         if (createQuery) {
           errorDetails += `\n--- CREATE QUERY ---\n${createQuery}`;
@@ -205,9 +222,8 @@ async function processFolder(
           errorDetails += `\n--- INSERT VALUES COUNT ---\n${records.length} records`;
         }
 
+        if (progressCallback) progressCallback(errorDetails);
         logger.error(errorDetails);
-
-        await logError(errorDetails);
       }
     }
     const end = performance.now(); // End timer
@@ -215,7 +231,8 @@ async function processFolder(
     logger.info(`Processo finalizado em: ${seconds.toFixed(2)} segundos.`);
   } catch (err) {
     const errorMessage = `Could not process folder: ${err.message}`;
-    await logError(errorMessage);
+    logger.error(errorMessage);
+    throw new Error(errorMessage);
   }
 }
 

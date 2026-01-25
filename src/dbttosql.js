@@ -1,23 +1,32 @@
-const path = require("path");
+// const path = require("path");
 const connectToDatabase = require("./db/db");
 const { processFolder } = require("./util/BatchRead");
-const logError = require("./middleware/LogError");
 const { CreateSyncHistoryTable } = require("./db/SyncHistory");
 
-const dbfFolderPath = path.join("C:", "siv");
-const dbfFilePath = path.join("C:", "siv", "produtos.dbf");
+// const dbfFolderPath = path.join("C:", "siv");
+// const dbfFilePath = path.join("C:", "siv", "produtos.dbf");
+
+const logger = require("./util/logger");
 
 // F - Y - T - decimals
 
 async function run(folderPath, clientId, progressCallback) {
-  const db = await connectToDatabase();
-  // const [rows] = await db.execute('SELECT * FROM users WHERE id = ?', [1]);
-  if (progressCallback) progressCallback("Conectado ao banco de dados...");
-  await CreateSyncHistoryTable(db);
-  await processFolder(db, folderPath, clientId, logError, progressCallback);
-  if (progressCallback) progressCallback("Processo concluído!");
-  console.log("Done");
-  db.end();
+  let db;
+  try {
+    db = await connectToDatabase(logger);
+    // const [rows] = await db.execute('SELECT * FROM users WHERE id = ?', [1]);
+    if (progressCallback) progressCallback("Conectado ao banco de dados...");
+    await CreateSyncHistoryTable(db, logger);
+    const clientIdNum = parseInt(clientId, 10);
+    await processFolder(db, folderPath, clientIdNum, logger, progressCallback);
+    if (progressCallback) progressCallback("Processo concluído!");
+    console.log("Done");
+  } catch (err) {
+    console.error("Migration Error:", err.message);
+    logger.error(`Migration Error: ${err.message}`);
+  } finally {
+    if (db) await db.release();
+  }
 }
 
 module.exports = { runMigration: run };

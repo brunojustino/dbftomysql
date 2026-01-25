@@ -1,0 +1,93 @@
+<script>
+  const terminal = document.getElementById("terminal");
+  const folderSpan = document.getElementById("folderPath");
+  let selectedPath = "";
+  const apiKeyInput = document.getElementById("apiKeyInput");
+  const statusCircle = document.getElementById("statusCircle");
+
+  apiKeyInput.addEventListener("blur", async () => {
+    const key = apiKeyInput.value;
+    if (!key) return;
+
+    const result = await window.electronAPI.validateKey(key);
+    if (result.success) {
+      log(`Autenticado como: ${result.clientName}`);
+      // You can store the ID internally, but keep it hidden from the UI
+    } else {
+      alert(result.message);
+    }
+  });
+
+  async function checkConnectionStatus() {
+    try {
+      const result = await window.electronAPI.testConnection();
+
+      if (result.success) {
+        statusCircle.style.background = "#28a745"; // Green
+        statusCircle.title = "Conectado ao MySQL";
+      } else {
+        statusCircle.style.background = "#dc3545"; // Red
+        statusCircle.title = "Erro: " + result.message;
+      }
+    } catch (err) {
+      statusCircle.style.background = "#dc3545";
+    }
+  }
+
+  window.addEventListener("DOMContentLoaded", async () => {
+    // Ask the main process for the saved path
+    const savedPath = await window.electronAPI.getLastPath();
+    const savedApiKey = await window.electronAPI.getLastClient();
+    selectedPath = savedPath;
+    document.getElementById("folderPath").textContent = savedPath;
+    document.getElementById("apiKeyInput").value = savedApiKey;
+
+    checkConnectionStatus(); // Check immediately
+    setInterval(checkConnectionStatus, 300000);
+  });
+
+  // Function to add lines to our "Terminal"
+  function log(message) {
+    const line = document.createElement("div");
+    line.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+    terminal.appendChild(line);
+    terminal.scrollTop = terminal.scrollHeight; // Auto-scroll to bottom
+    if (message.toLowerCase().includes("concluído")) {
+      document.getElementById("statusBar").textContent =
+        "Migração concluída com sucesso.";
+    }
+  }
+
+  document
+    .getElementById("selectFolder")
+    .addEventListener("click", async () => {
+      selectedPath = await window.electronAPI.selectFolder();
+      if (selectedPath) folderSpan.textContent = selectedPath;
+    });
+
+  document.getElementById("startBtn").addEventListener("click", () => {
+    const clientId = document.getElementById("clientIdInput").value;
+
+    if (!selectedPath) {
+      alert("Por favor, selecione uma pasta primeiro.");
+      return;
+    }
+
+    if (!clientId) {
+      alert("Por favor, insira o ID do Cliente.");
+      return;
+    }
+    terminal.innerHTML = ""; // Clear terminal
+    log(`Iniciando processo para Cliente ID: ${clientId}...`);
+    window.electronAPI.startMigration(selectedPath, clientId);
+  });
+
+  // Listen for progress updates from the Main Process
+  window.electronAPI.onProgress((message) => {
+    log(message);
+  });
+
+  document.getElementById("logBtn").addEventListener("click", () => {
+    window.electronAPI.openLogs();
+  });
+</script>
