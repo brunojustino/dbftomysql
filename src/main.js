@@ -10,10 +10,9 @@ const {
 
 const path = require("path");
 const Store = require("electron-store");
-// Import your existing logic
-const { runMigration } = require("./dbttosql");
-const logger = require("./util/logger");
-const connectToDatabase = require("./db/db");
+const { runMigration } = require("./dbftosql.js");
+const logger = require("./util/logger.js");
+const connectToDatabase = require("./db/db.js");
 const axios = require("axios");
 
 const store = new Store();
@@ -232,6 +231,7 @@ app.whenReady().then(() => {
   };
 
   // 3. Set the interval for every 30 minutes thereafter
+  runAutoSync();
   setInterval(runAutoSync, 30 * 60 * 1000);
 });
 
