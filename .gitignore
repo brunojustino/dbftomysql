@@ -1,9 +1,11 @@
 node_modules/
 dist/
-dist-electron/
-dist-electron
+dist_electron/
+**/dist_electron/
+**/dist-electron/
 .env
 .DS_Store
 .vscode/
 log.txt
 log-errors.txt
+rendererOld.html
