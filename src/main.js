@@ -8,17 +8,29 @@ const {
   shell,
 } = require("electron");
 
+if (process.env.NODE_ENV !== "development") {
+  // These strings are replaced by Vite during build
+  process.env.VITE_DB_HOST = process.env.VITE_DB_HOST;
+  process.env.VITE_DB_USER = process.env.VITE_DB_USER;
+  process.env.VITE_DB_PASS = process.env.VITE_DB_PASS;
+  process.env.VITE_DB_PORT = process.env.VITE_DB_PORT;
+  process.env.VITE_DB_NAME = process.env.VITE_DB_NAME;
+} else {
+  require("dotenv").config();
+}
+
 const path = require("path");
 const Store = require("electron-store");
 const { runMigration } = require("./dbftosql.js");
 const logger = require("./util/logger.js");
 const connectToDatabase = require("./db/db.js");
 const axios = require("axios");
-
+const { autoUpdater } = require("electron-updater");
 const store = new Store();
 
 let mainWindow;
 let tray = null;
+let currentStatus = "";
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -70,6 +82,10 @@ ipcMain.handle("test-connection", async () => {
     if (db) await db.release();
   }
 });
+
+// ipcMain.handle("get-current-status", () => {
+//   return { status: currentStatus };
+// });
 
 ipcMain.handle("save-settings", async (event, { apiKey, folderPath }) => {
   console.log("Validating API Key:", apiKey);
@@ -191,6 +207,7 @@ function createTray() {
   // Optional: Double click icon to open settings
   tray.on("double-click", () => {
     mainWindow.show();
+    mainWindow.webContents.send("from-tray", currentStatus);
   });
 }
 
@@ -218,6 +235,7 @@ app.whenReady().then(() => {
           }
         });
         console.log("Sincronização automática finalizada.");
+        currentStatus = `\n Sincronização automática finalizada para Cliente ID: ${lastClient} na pasta: ${lastPath}`;
         logger.info(
           `Sincronização automática finalizada para Cliente ID: ${lastClient} na pasta: ${lastPath}`,
         );
@@ -227,11 +245,16 @@ app.whenReady().then(() => {
       }
     } else {
       console.log("Sincronização automática pulada: Faltam configurações.");
+      currentStatus = `\n Configure sua chave api`;
     }
   };
 
   // 3. Set the interval for every 30 minutes thereafter
-  runAutoSync();
+
+  mainWindow.webContents.on("did-finish-load", () => {
+    runAutoSync();
+  });
+
   setInterval(runAutoSync, 30 * 60 * 1000);
 });
 

@@ -1,12 +1,11 @@
 const mysql = require("mysql2/promise");
-require("dotenv").config();
 
 const pool = mysql.createPool({
-  host: process.env.DB_HOST,
-  port: process.env.DB_PORT || 3307,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASS,
-  database: process.env.DB_NAME,
+  host: process.env.VITE_DB_HOST,
+  port: process.env.VITE_DB_PORT || 3307,
+  user: process.env.VITE_DB_USER,
+  password: process.env.VITE_DB_PASS,
+  database: process.env.VITE_DB_NAME,
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
@@ -21,6 +20,9 @@ async function connectToDatabase(logger) {
     return connection;
   } catch (error) {
     console.error("Error connecting to database:", error);
+    console.log(
+      "env: " + process.env.VITE_DB_HOST + " - " + process.env.VITE_DB_USER,
+    );
     logger.error(`Error connecting to database: ${error.message}`);
     throw error;
   }

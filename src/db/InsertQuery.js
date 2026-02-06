@@ -27,7 +27,7 @@ function InsertQuery(tableName, records, clienteId) {
 
         // If deleted in DBF, set MySQL STATUS to 'I', otherwise keep as is or set 'A'
         if (isDeleted) {
-          newRec["STATUS"] = "I";
+          newRec["status"] = "I";
         }
 
         return newRec;

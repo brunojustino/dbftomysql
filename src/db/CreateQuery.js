@@ -48,16 +48,19 @@ function CreateQuery(
         mysqlType = `DATE`;
         break;
       case "L":
-        mysqlType = `TINYINT(1)`;
+        mysqlType = `BOOLEAN`;
         break;
       case "M":
-        mysqlType = `TEXT`;
+        mysqlType = `LONGTEXT`;
         break;
       default:
         mysqlType = `TEXT`;
     }
-
-    columns.push(`  \`${name}\` ${mysqlType}`);
+    if (name.toLowerCase() === "codigo") {
+      columns.push(`  \`${name.toLowerCase()}\` ${mysqlType} NOT NULL`);
+    } else {
+      columns.push(`  \`${name.toLowerCase()}\` ${mysqlType}`);
+    }
   });
 
   // Composite Unique Key (client_id + business code)
