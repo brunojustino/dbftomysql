@@ -200,6 +200,18 @@ function createTray() {
     },
     { type: "separator" },
     {
+      label: "Abrir Logs",
+      click: () => {
+        shell.showItemInFolder(logger.getLogPath());
+      },
+    },
+    {
+      label: "Check for Updates",
+      click: () => {
+        autoUpdater.checkForUpdates();
+      },
+    },
+    {
       label: "Sair",
       click: () => {
         app.isQuitting = true;
@@ -232,13 +244,11 @@ app.whenReady().then(() => {
 
   autoUpdater.on("update-available", (info) => {
     console.log("Update available.", info);
-
-    // Optional: Show a dialog to the user
     dialog.showMessageBox(mainWindow, {
       type: "info",
       title: "Update Available",
       message:
-        "A new version of the app is available. It will be downloaded in the background.",
+        "A new version is available. It will be downloaded in the background.",
       buttons: ["OK"],
     });
   });
@@ -266,8 +276,6 @@ app.whenReady().then(() => {
 
   autoUpdater.on("update-downloaded", (info) => {
     console.log("Update downloaded.", info);
-
-    // Prompt the user to install the update
     dialog
       .showMessageBox(mainWindow, {
         type: "info",
@@ -278,7 +286,7 @@ app.whenReady().then(() => {
       })
       .then((result) => {
         if (result.response === 0) {
-          // "Restart Now" was clicked
+          // "Restart Now"
           autoUpdater.quitAndInstall();
         }
       });
