@@ -1,5 +1,5 @@
 // const path = require("path");
-const connectToDatabase = require("./db/db.js");
+const { connectToDatabase } = require("./db/db.js");
 const { processFolder } = require("./util/BatchRead.js");
 const { CreateSyncHistoryTable } = require("./db/SyncHistory.js");
 

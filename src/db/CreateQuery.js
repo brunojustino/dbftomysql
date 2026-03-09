@@ -71,7 +71,7 @@ function CreateQuery(
 
     // Combine cliente_id with the provided keys
     const keyColumns = ["cliente_id", ...keyArray]
-      .map((k) => `\`${k}\``)
+      .map((k) => `\`${k.toLowerCase()}\``)
       .join(", ");
 
     columns.push(`  UNIQUE KEY \`idx_${tableName}_unique\` (${keyColumns})`);

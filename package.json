@@ -1,7 +1,7 @@
 {
   "name": "dbfreader2",
-  "version": "1.0.14",
-  "description": "dbf to sql",
+  "version": "1.0.15",
+  "description": "Proinfo Sync Tool - Ferramenta para sincronização de arquivos DBF com MySQL",
   "license": "ISC",
   "author": "bruno justino",
   "type": "commonjs",
@@ -19,7 +19,7 @@
   },
   "build": {
     "appId": "com.brunojustino.syncdbfapp",
-    "productName": "Proinfo DBF Sync Tool",
+    "productName": "Proinfo Sync Tool",
     "directories": {
       "output": "dist_electron"
     },
