@@ -27,7 +27,7 @@ function InsertQuery(tableName, records, clienteId) {
 
         // If deleted in DBF, set MySQL STATUS to 'I', otherwise keep as is or set 'A'
         if (isDeleted) {
-          newRec["STATUS"] = "I";
+          newRec["status"] = "I";
         }
 
         return newRec;
@@ -62,7 +62,9 @@ function InsertQuery(tableName, records, clienteId) {
     }
 
     // 3. Prepare the SQL template
-    const escapedColumns = columns.map((col) => `\`${col}\``).join(", ");
+    const escapedColumns = columns
+      .map((col) => `\`${col.toLowerCase()}\``)
+      .join(", ");
 
     // Check if NaN snuck into the SQL
     if (escapedColumns.includes("NaN")) {

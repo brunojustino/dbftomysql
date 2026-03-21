@@ -91,7 +91,7 @@ async function processFolder(
       let records = null;
       try {
         const fullPath = path.join(folderPath, file);
-        const fileName = file.substring(0, file.length - 4);
+        const fileName = file.substring(0, file.length - 4).toLowerCase();
 
         processedCount++;
         if (progressCallback)

@@ -10,6 +10,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
   validateApiKey: (apiKey) => ipcRenderer.invoke("validate-api-key", apiKey),
   getSettings: () => ipcRenderer.invoke("get-settings"),
   saveSettings: (settings) => ipcRenderer.invoke("save-settings", settings),
+  // getCurrentStatus: () => ipcRenderer.invoke("get-current-status"),
+  onTrayMessage: (callback) =>
+    ipcRenderer.on("from-tray", (event, message) => callback(message)),
   // startMigration: (folderPath, clientId) =>
   //   ipcRenderer.send("migration:start", { folderPath, clientId }),
   // startMigration: () => ipcRenderer.on("migration:start"),

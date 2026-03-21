@@ -8,18 +8,65 @@ const {
   shell,
 } = require("electron");
 
+// if (process.env.NODE_ENV !== "development") {
+//   // These strings are replaced by Vite during build
+//   process.env.VITE_DB_HOST = process.env.VITE_DB_HOST;
+//   process.env.VITE_DB_USER = process.env.VITE_DB_USER;
+//   process.env.VITE_DB_PASS = process.env.VITE_DB_PASS;
+//   process.env.VITE_DB_PORT = process.env.VITE_DB_PORT;
+//   process.env.VITE_DB_NAME = process.env.VITE_DB_NAME;
+// } else {
+//   require("dotenv").config();
+// }
+
 const path = require("path");
 const Store = require("electron-store");
-// Import your existing logic
-const { runMigration } = require("./dbttosql");
-const logger = require("./util/logger");
-const connectToDatabase = require("./db/db");
+const { runMigration } = require("./dbftosql.js");
+const logger = require("./util/logger.js");
+const { initDb, connectToDatabase } = require("./db/db.js");
 const axios = require("axios");
-
+const { autoUpdater } = require("electron-updater");
 const store = new Store();
+
+async function initDbIfApiKeySaved() {
+  const apiKey = store.get("apiKey");
+  if (!apiKey) return;
+
+  try {
+    const response = await axios.get(
+      "http://localhost:3002/auth/validate-key",
+      {
+        headers: { "x-api-key": apiKey },
+      },
+    );
+
+    const { db_host, db_name, db_usr, db_password, db_port } = response.data;
+
+    initDb({
+      host: db_host,
+      user: db_usr,
+      password: db_password,
+      database: db_name,
+      port: db_port || 3307,
+    });
+
+    logger.info("DB initialized using stored API key.");
+  } catch (err) {
+    const message = err.response?.data?.message || err.message;
+    logger.warn(`Could not init DB from stored API key: ${message}`);
+  }
+}
+
+autoUpdater.logger = require("electron-log");
+autoUpdater.logger.transports.file.level = "info";
+
+// const updateServer = "https://github.com/brunojustino/dbftomysql";
+// const feedUrl = `${updateServer}/releases/download/v${app.getVersion()}`;
+// autoUpdater.setFeedURL({ url: feedUrl });
 
 let mainWindow;
 let tray = null;
+let currentStatus = "";
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -59,6 +106,10 @@ ipcMain.handle("dialog:openDirectory", async () => {
 
 ipcMain.handle("test-connection", async () => {
   let db;
+
+  // Ensure DB pool is initialized using stored API key (if available)
+  await initDbIfApiKeySaved();
+
   try {
     db = await connectToDatabase(logger);
     // Simple query to prove we are truly inside
@@ -72,19 +123,42 @@ ipcMain.handle("test-connection", async () => {
   }
 });
 
+// ipcMain.handle("get-current-status", () => {
+//   return { status: currentStatus };
+// });
+
 ipcMain.handle("save-settings", async (event, { apiKey, folderPath }) => {
   console.log("Validating API Key:", apiKey);
   console.log("Validating folder:", folderPath);
   try {
     const response = await axios.get(
-      "https://proinfo.brunojustino.com/auth/validate-key",
+      "http://localhost:3002/auth/validate-key",
       {
         headers: { "x-api-key": apiKey },
       },
     );
-    const { clientId, nome } = response.data;
-    // 2. If valid, save to electron-store
+    const { clientId, nome, db_host, db_name, db_usr, db_password } =
+      response.data;
 
+    // Initialize the database pool using credentials returned from the auth service
+    // (this replaces the old env-var based pool initialization)
+    try {
+      initDb({
+        host: db_host,
+        user: db_usr,
+        password: db_password,
+        database: db_name,
+        port: response.data.db_port || 3307,
+      });
+    } catch (dbInitErr) {
+      logger.error(`Falha ao inicializar o DB: ${dbInitErr.message}`);
+      return {
+        success: false,
+        message: "Falha ao inicializar conexão com o banco de dados.",
+      };
+    }
+
+    // 2. If valid, save to electron-store
     console.log(clientId, nome);
 
     store.set("apiKey", apiKey);
@@ -178,6 +252,18 @@ function createTray() {
     },
     { type: "separator" },
     {
+      label: "Abrir Logs",
+      click: () => {
+        shell.showItemInFolder(logger.getLogPath());
+      },
+    },
+    {
+      label: "Checar Atualizações",
+      click: () => {
+        autoUpdater.checkForUpdates();
+      },
+    },
+    {
       label: "Sair",
       click: () => {
         app.isQuitting = true;
@@ -186,54 +272,169 @@ function createTray() {
     },
   ]);
 
-  tray.setToolTip("DBF to SQL Sync");
+  tray.setToolTip("Proinfo Sync");
   tray.setContextMenu(contextMenu);
 
   // Optional: Double click icon to open settings
   tray.on("double-click", () => {
     mainWindow.show();
+    mainWindow.webContents.send("from-tray", currentStatus);
   });
 }
 
-app.whenReady().then(() => {
-  createWindow();
-  createTray();
+// prevent multiple instances (especially helpful when Windows auto-launches)
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on("second-instance", () => {
+    // Someone tried to start a second instance, show the window
+    if (mainWindow) {
+      mainWindow.show();
+    }
+  });
 
-  const runAutoSync = async () => {
-    const lastPath = store.get("lastPath");
-    const rawClient = store.get("lastClient");
-    const lastClient = parseInt(rawClient, 10);
+  app.whenReady().then(async () => {
+    await initDbIfApiKeySaved();
 
-    if (lastPath && !isNaN(lastClient)) {
-      console.log(
-        `[AUTO] Iniciando para Cliente ID: ${lastClient} na pasta: ${lastPath}`,
-      );
-      try {
-        await runMigration(lastPath, lastClient, (message) => {
-          // Safety check before sending to UI
-          if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send(
-              "migration:progress",
-              `[AUTO] ${message}`,
-            );
+    // Auto-start configuration for Windows builds
+    if (process.platform === "win32") {
+      const exeName = path.basename(process.execPath);
+      // The special args are needed when the app is installed with squirrel / nsis
+      const args = [
+        "--processStart",
+        `\"${exeName}\"`,
+        "--process-start-args",
+        "--hidden",
+      ];
+
+      app.setLoginItemSettings({
+        openAtLogin: true,
+        openAsHidden: true, // still request a hidden launch
+        path: process.execPath,
+        args,
+      });
+    } else {
+      // fallback for other platforms
+      app.setLoginItemSettings({
+        openAtLogin: true,
+        openAsHidden: true,
+      });
+    }
+
+    createTray();
+    createWindow();
+
+    // respect `--hidden` flag passed on startup; prevents any visible window
+    if (process.argv.includes("--hidden")) {
+      mainWindow.hide();
+    } else {
+      mainWindow.show();
+    }
+
+    // auto updater
+    autoUpdater.checkForUpdatesAndNotify();
+
+    // Event listeners for the updater
+    autoUpdater.on("checking-for-update", () => {
+      console.log("Checking for update...");
+    });
+
+    autoUpdater.on("update-available", (info) => {
+      console.log("Update available.", info);
+      dialog.showMessageBox(mainWindow, {
+        type: "info",
+        title: "Atualização Disponível",
+        message:
+          "Uma nova versão está disponível e será baixada em segundo plano. Você será notificado quando o download for concluído.",
+        buttons: ["OK"],
+      });
+    });
+
+    autoUpdater.on("update-not-available", (info) => {
+      console.log("Update not available.", info);
+    });
+
+    autoUpdater.on("error", (err) => {
+      console.error("Error in auto-updater.", err);
+    });
+
+    autoUpdater.on("download-progress", (progressObj) => {
+      let log_message = "Download speed: " + progressObj.bytesPerSecond;
+      log_message = log_message + " - Downloaded " + progressObj.percent + "%";
+      log_message =
+        log_message +
+        " (" +
+        progressObj.transferred +
+        "/" +
+        progressObj.total +
+        ")";
+      console.log(log_message);
+    });
+
+    autoUpdater.on("update-downloaded", (info) => {
+      console.log("Update downloaded.", info);
+      dialog
+        .showMessageBox(mainWindow, {
+          type: "info",
+          title: "Update Ready",
+          message:
+            "Uma nova versão foi baixada. O aplicativo será reiniciado para aplicar a atualização.",
+          buttons: ["Reiniciar agora", "Depois"],
+        })
+        .then((result) => {
+          if (result.response === 0) {
+            // "Restart Now"
+            autoUpdater.quitAndInstall();
           }
         });
-        console.log("Sincronização automática finalizada.");
-        logger.info(
-          `Sincronização automática finalizada para Cliente ID: ${lastClient} na pasta: ${lastPath}`,
-        );
-      } catch (err) {
-        console.error("Erro na sincronização automática:", err);
-        logger.error(`Erro na migração: ${err.stack}`);
-      }
-    } else {
-      console.log("Sincronização automática pulada: Faltam configurações.");
-    }
-  };
+    });
 
-  // 3. Set the interval for every 30 minutes thereafter
-  setInterval(runAutoSync, 30 * 60 * 1000);
-});
+    // end auto updater
+
+    const runAutoSync = async () => {
+      const lastPath = store.get("lastPath");
+      const rawClient = store.get("lastClient");
+      const lastClient = parseInt(rawClient, 10);
+
+      if (lastPath && !isNaN(lastClient)) {
+        console.log(
+          `[AUTO] Iniciando para Cliente ID: ${lastClient} na pasta: ${lastPath}`,
+        );
+        try {
+          await runMigration(lastPath, lastClient, (message) => {
+            // Safety check before sending to UI
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.webContents.send(
+                "migration:progress",
+                `[AUTO] ${message}`,
+              );
+            }
+          });
+          console.log("Sincronização automática finalizada.");
+          currentStatus = `\n Sincronização automática finalizada para Cliente ID: ${lastClient} na pasta: ${lastPath}`;
+          logger.info(
+            `Sincronização automática finalizada para Cliente ID: ${lastClient} na pasta: ${lastPath}`,
+          );
+        } catch (err) {
+          console.error("Erro na sincronização automática:", err);
+          logger.error(`Erro na migração: ${err.stack}`);
+        }
+      } else {
+        console.log("Sincronização automática pulada: Faltam configurações.");
+        currentStatus = `\n Configure sua chave api`;
+      }
+    };
+
+    // 3. Set the interval for every 30 minutes thereafter
+
+    mainWindow.webContents.on("did-finish-load", () => {
+      runAutoSync();
+    });
+
+    setInterval(runAutoSync, 30 * 60 * 1000);
+  });
+}
 
 // Ensure the app doesn't quit when all windows are closed
 app.on("window-all-closed", (e) => {

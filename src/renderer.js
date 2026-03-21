@@ -169,4 +169,8 @@ window.addEventListener("DOMContentLoaded", async () => {
   logBtn.addEventListener("click", () => {
     window.electronAPI.openLogs();
   });
+
+  window.electronAPI.onTrayMessage((message) => {
+    terminal.innerText += message;
+  });
 });

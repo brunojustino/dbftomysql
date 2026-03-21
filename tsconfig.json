@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "CommonJS", // Electron usually requires CommonJS
+    "allowJs": true, // THE MOST IMPORTANT SETTING
+    "checkJs": false, // Don't report errors in your old JS files
+    "jsx": "react-jsx", // If you're using React
+    "outDir": "./dist", // Where the compiled code goes
+    "rootDir": "./src", // Where your source code lives
+    "strict": true, // Enable strictness for your NEW .ts files
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "skipLibCheck": true
+  },
+  "include": ["src/**/*"], // Tells TS to look at everything in src
+  "exclude": ["node_modules"]
+}
