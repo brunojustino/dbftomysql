@@ -47,6 +47,9 @@
     }
   },
   "dependencies": {
+    "@azure/core-client": "^1.10.1",
+    "@azure/core-rest-pipeline": "^1.23.0",
+    "@typespec/ts-http-runtime": "^0.3.4",
     "axios": "^1.13.4",
     "dbffile": "^1.12.0",
     "dotenv": "^17.2.3",
