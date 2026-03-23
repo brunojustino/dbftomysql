@@ -308,13 +308,19 @@ if (!gotTheLock) {
         "--process-start-args",
         "--hidden",
       ];
-
-      app.setLoginItemSettings({
-        openAtLogin: true,
-        openAsHidden: true, // still request a hidden launch
-        path: process.execPath,
-        args,
-      });
+      const appExePath = path.join(
+        process.env.ProgramFiles,
+        "Proinfo Sync Tool",
+        "Proinfo Sync Tool.exe",
+      );
+      if (!app.isPackaged) {
+        app.setLoginItemSettings({
+          openAtLogin: true,
+          openAsHidden: true, // still request a hidden launch
+          path: appExePath,
+          args,
+        });
+      }
     } else {
       // fallback for other platforms
       app.setLoginItemSettings({
