@@ -1,6 +1,6 @@
 {
   "name": "dbfreader2",
-  "version": "1.0.16",
+  "version": "1.0.17",
   "description": "Proinfo Sync Tool - Ferramenta para sincronização de arquivos DBF com MySQL",
   "license": "ISC",
   "author": "bruno justino",
@@ -15,7 +15,7 @@
     "start": "npm run build && electron .",
     "dev": "vite",
     "build": "vite build && electron-builder --publish=never",
-    "build:publish": "vite build && cross-env GH_TOKEN=$GH_TOKEN electron-builder --publish=always"
+    "build:publish": "vite build && cross-env GH_TOKEN=$GH_TOKEN electron-builder -p always"
   },
   "build": {
     "appId": "com.brunojustino.syncdbfapp",

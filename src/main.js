@@ -78,6 +78,7 @@ function createWindow() {
     },
   });
   mainWindow.loadFile(path.join(__dirname, "index.html"));
+  mainWindow.setMenu(null);
 
   // Prevent the app from closing when the window is closed
   // Instead, just hide it so it keeps running in the tray
