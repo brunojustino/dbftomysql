@@ -51,7 +51,7 @@
   },
   "dependencies": {
     "@typespec/ts-http-runtime": "^0.3.4",
-    "axios": "^1.13.4",
+    "axios": "^1.14.0",
     "dbffile": "^1.12.0",
     "dotenv": "^17.2.3",
     "electron-log": "^5.4.3",

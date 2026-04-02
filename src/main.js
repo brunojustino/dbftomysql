@@ -133,7 +133,7 @@ ipcMain.handle("save-settings", async (event, { apiKey, folderPath }) => {
   console.log("Validating folder:", folderPath);
   try {
     const response = await axios.get(
-      "http://localhost:3002/auth/validate-key",
+      "https://proinfo.brunojustino.com/auth/validate-key",
       {
         headers: { "x-api-key": apiKey },
       },

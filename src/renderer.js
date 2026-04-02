@@ -121,6 +121,8 @@ window.addEventListener("DOMContentLoaded", async () => {
       checkConnection();
       setLockedState(true);
     } else {
+      const userMessage = result.message || "Erro desconhecido";
+      alert(`Falha: ${userMessage}`);
       alert("Falha: " + result.message);
     }
 
