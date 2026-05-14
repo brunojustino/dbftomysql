@@ -27,4 +27,13 @@ contextBridge.exposeInMainWorld("electronAPI", {
       );
     }
   },
+  startReverseSync: (data) => ipcRenderer.send("reverseSync:start", data),
+  onReverseProgress: (callback) => {
+    if (typeof callback === "function") {
+      ipcRenderer.removeAllListeners("reverseSync:progress");
+      ipcRenderer.on("reverseSync:progress", (event, message) =>
+        callback(message),
+      );
+    }
+  },
 });

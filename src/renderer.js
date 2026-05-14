@@ -5,6 +5,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   const saveBtn = document.getElementById("saveBtn");
   const editBtn = document.getElementById("editBtn");
   const startBtn = document.getElementById("startBtn");
+  const pullBtn = document.getElementById("pullBtn");
   const statusBar = document.getElementById("statusBar");
   const logBtn = document.getElementById("logBtn");
   const terminal = document.getElementById("terminal");
@@ -22,6 +23,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 
     // Enable migration only if locked (configured)
     startBtn.disabled = !isLocked;
+    pullBtn.disabled = !isLocked;
 
     if (isLocked) {
       apiKeyInput.type = "password";
@@ -166,6 +168,42 @@ window.addEventListener("DOMContentLoaded", async () => {
     });
 
     window.electronAPI.startMigration({ folderPath, clientId });
+  });
+
+  // Reverse sync: Pull from Database
+  pullBtn.addEventListener("click", async () => {
+    const settings = await window.electronAPI.getSettings();
+    const clientId = settings.lastClient;
+    const folderPath = folderPathDisplay.textContent || settings.folderPath;
+    console.log("Retrieved settings for reverse sync:", settings);
+
+    if (!folderPath || !clientId) {
+      alert(
+        "Configurações incompletas. Por favor, verifique a chave e a pasta.",
+      );
+      return;
+    }
+    terminal.innerHTML = "Iniciando sincronização reversa (Pull)...<br>";
+    pullBtn.disabled = true;
+
+    window.electronAPI.onReverseProgress((message) => {
+      const timestamp = new Date().toLocaleTimeString();
+      terminal.innerHTML += `<code>[${timestamp}]</code> ${message}<br>`;
+      terminal.scrollTop = terminal.scrollHeight;
+
+      if (
+        message.includes("Completed") ||
+        message.includes("completed") ||
+        message.includes("Erro") ||
+        message.includes("Error") ||
+        message.includes("Finalizado")
+      ) {
+        pullBtn.disabled = false;
+        pullBtn.textContent = "Pull do Banco de Dados";
+      }
+    });
+
+    window.electronAPI.startReverseSync({ folderPath, clientId });
   });
 
   logBtn.addEventListener("click", () => {

@@ -22,6 +22,7 @@ const {
 const path = require("path");
 const Store = require("electron-store");
 const { runMigration } = require("./dbftosql.js");
+const ReverseSyncService = require("./services/ReverseSyncService.js");
 const logger = require("./util/logger.js");
 const { initDb, connectToDatabase } = require("./db/db.js");
 const axios = require("axios");
@@ -231,6 +232,29 @@ ipcMain.on("migration:start", async (event, { folderPath, clientId }) => {
     });
   } catch (error) {
     event.sender.send("migration:progress", `Error: ${error.message}`);
+  }
+});
+
+// Triggered when user clicks "Pull from Database" in the UI (reverse sync)
+ipcMain.on("reverseSync:start", async (event, { folderPath, clientId }) => {
+  store.set("lastClient", clientId);
+  store.set("lastPath", folderPath);
+  try {
+    const reverseSyncService = new ReverseSyncService({
+      logger,
+    });
+
+    await reverseSyncService.start(folderPath, clientId, (message) => {
+      event.sender.send("reverseSync:progress", message);
+    });
+
+    const finalStatus = reverseSyncService.getStatus();
+    event.sender.send(
+      "reverseSync:progress",
+      `Reverse sync completed: ${finalStatus.tablesProcessed} tables processed, ${finalStatus.recordsProcessed} records synced, ${finalStatus.conflictsLogged} conflicts logged.`,
+    );
+  } catch (error) {
+    event.sender.send("reverseSync:progress", `Error: ${error.message}`);
   }
 });
 

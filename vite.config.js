@@ -58,6 +58,7 @@ module.exports = defineConfig(({ mode }) => {
           { src: "../src/db", dest: "." },
           { src: "../src/middleware", dest: "." },
           { src: "../src/util", dest: "." },
+          { src: "../src/services", dest: "." },
         ],
       }),
     ],

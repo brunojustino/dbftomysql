@@ -108,9 +108,14 @@
 
       <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0" />
 
-      <button id="startBtn" style="width: 100%; background: #28a745" disabled>
-        Iniciar Migração Manual
-      </button>
+      <div style="display: flex; gap: 10px">
+        <button id="startBtn" style="width: 100%; background: #28a745" disabled>
+          Iniciar Migração Manual
+        </button>
+        <button id="pullBtn" style="width: 100%; background: #17a2b8" disabled>
+          Pull do Banco de Dados
+        </button>
+      </div>
 
       <p>Log de Operações:</p>
       <div id="terminal" class="terminal">Pronto para iniciar...</div>
