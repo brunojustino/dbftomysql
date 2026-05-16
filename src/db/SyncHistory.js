@@ -3,7 +3,7 @@ const createSyncQuery = `
     id INT AUTO_INCREMENT PRIMARY KEY,
     file_name VARCHAR(255) NOT NULL,
     cliente_id INT NOT NULL,
-    file_hash VARCHAR(32) NOT NULL,
+    file_hash VARCHAR(32),
     last_processed DATETIME DEFAULT CURRENT_TIMESTAMP,
     last_processed_on DATETIME,
     UNIQUE KEY \`idx_file_client\` (\`file_name\`, \`cliente_id\`)
@@ -65,6 +65,11 @@ async function ensureSyncHistoryColumns(db, logger) {
       console.log(`Column "last_processed_on" added to sync_history table.`);
       logger.info(`Column "last_processed_on" added to sync_history table.`);
     }
+
+    // Also ensure file_hash is nullable for reverse sync
+    await db.execute(
+      `ALTER TABLE sync_history MODIFY COLUMN file_hash VARCHAR(32) NULL`,
+    );
   } catch (err) {
     console.error("Error ensuring sync_history columns:", err.message);
     logger.error(`Error ensuring sync_history columns: ${err.message}`);
