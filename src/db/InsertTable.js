@@ -3,7 +3,7 @@ async function InsertTable(
   tableName,
   query,
   onProgress = null,
-  logError = null
+  logger = null,
 ) {
   if (!query) {
     return;
@@ -70,8 +70,12 @@ async function InsertTable(
     error.values = query.values;
     error.records = query.records;
 
-    if (logError) {
-      await logError(errorMessage);
+    if (logger) {
+      if (typeof logger.error === "function") {
+        logger.error(errorMessage);
+      } else if (typeof logger === "function") {
+        await logger(errorMessage);
+      }
     }
     throw error;
   }

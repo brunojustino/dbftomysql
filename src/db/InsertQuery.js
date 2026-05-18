@@ -8,13 +8,30 @@ function InsertQuery(tableName, records, clienteId) {
 
   try {
     // 1. Process records: Inject clientId and handle Soft Deletes
+    const reservedNames = [
+      "id",
+      "cliente_id",
+      "createdat",
+      "updatedat",
+      "last_sync",
+      "status",
+    ];
+
     const processedRecords = records.map((rec, idx) => {
       try {
         // Check if the record is marked as deleted in DBF
         const isDeleted = rec[Symbol.for("DELETED")] || rec["@deleted"];
 
         // Create a new object to avoid mutating the original data
-        const newRec = { ...rec };
+        // We also handle renaming of reserved fields here
+        const newRec = {};
+        Object.keys(rec).forEach((key) => {
+          let targetKey = key;
+          if (reservedNames.includes(key.toLowerCase())) {
+            targetKey = `${key.toLowerCase()}2`;
+          }
+          newRec[targetKey] = rec[key];
+        });
 
         // Inject the client identifier
         if (isNaN(clienteId) || clienteId === null || clienteId === undefined) {

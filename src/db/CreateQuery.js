@@ -14,6 +14,15 @@ function CreateQuery(
   const fields = rawString.split(", ");
 
   // Management fields for your multi-tenant setup
+  const reservedNames = [
+    "id",
+    "cliente_id",
+    "createdat",
+    "updatedat",
+    "last_sync",
+    "status",
+  ];
+
   const columns = [
     "  `id` BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY",
     "  `cliente_id` INT NOT NULL",
@@ -21,6 +30,11 @@ function CreateQuery(
 
   fields.forEach((field) => {
     let [name, type, size, decimals] = field.split("-");
+    let finalName = name.toLowerCase();
+
+    if (reservedNames.includes(finalName)) {
+      finalName = `${finalName}2`;
+    }
 
     // Check if there is an override for this specific field name
     // We use uppercase to match your DBF string convention
@@ -56,10 +70,10 @@ function CreateQuery(
       default:
         mysqlType = `TEXT`;
     }
-    if (name.toLowerCase() === "codigo") {
-      columns.push(`  \`${name.toLowerCase()}\` ${mysqlType} NOT NULL`);
+    if (finalName === "codigo") {
+      columns.push(`  \`${finalName}\` ${mysqlType} NOT NULL`);
     } else {
-      columns.push(`  \`${name.toLowerCase()}\` ${mysqlType}`);
+      columns.push(`  \`${finalName}\` ${mysqlType}`);
     }
   });
 
