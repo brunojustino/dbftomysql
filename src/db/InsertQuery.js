@@ -119,13 +119,8 @@ function InsertQuery(tableName, records, clienteId) {
               ].includes(c),
           );
 
-          // 2. Create a comparison string: (`col1` <> VALUES(`col1`) OR `col2` <> VALUES(`col2`)...)
-          const comparison = dataCols
-            .map((c) => `\`${c}\` <=> VALUES(\`${c}\`) = 0`) // <=> is the NULL-safe equality operator
-            .join(" OR ");
-
-          // 3. Only set NOW() if something in the comparison is true
-          return `\`updatedAt\` = IF(${comparison}, NOW(), \`updatedAt\`)`;
+          // 2. Always update updatedAt on every UPSERT to ensure reverse sync detects changes
+          return `\`updatedAt\` = NOW()`;
         }
         if (col === "last_sync") {
           return "`last_sync` = NOW()";

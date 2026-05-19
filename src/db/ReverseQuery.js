@@ -1,6 +1,24 @@
 const { getLastProcessedOn } = require("./SyncHistory");
 
 /**
+ * Format a Date to MySQL datetime format using LOCAL time (not UTC)
+ * MySQL datetime format: YYYY-MM-DD HH:MM:SS
+ * @param {Date|string} date - The date to format
+ * @returns {string} MySQL datetime string in local time
+ */
+function toLocalMySQLDateTime(date) {
+  if (!date) return null;
+  const d = typeof date === "string" ? new Date(date) : date;
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  const hours = String(d.getHours()).padStart(2, "0");
+  const minutes = String(d.getMinutes()).padStart(2, "0");
+  const seconds = String(d.getSeconds()).padStart(2, "0");
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+}
+
+/**
  * Get the last time this table was synced from remote to local
  * @param {object} connection - MySQL connection
  * @param {string} tableName - Table name to query
@@ -25,6 +43,7 @@ async function getLastSyncTime(connection, tableName, clientId, logger) {
         logger,
       );
     }
+    logger.info(`[DEBUG] getLastSyncTime for ${tableName}: ${lastSyncTime}`);
     return lastSyncTime;
   } catch (err) {
     logger.error(
@@ -58,11 +77,8 @@ async function getChangedRecords(
     const params = [clientId];
 
     if (lastSyncTime) {
-      // Convert to MySQL datetime format if needed
-      const sqlDateTime =
-        typeof lastSyncTime === "string"
-          ? lastSyncTime
-          : new Date(lastSyncTime).toISOString().slice(0, 19).replace("T", " ");
+      // Convert to MySQL datetime format using LOCAL time
+      const sqlDateTime = toLocalMySQLDateTime(lastSyncTime);
       query += ` AND updatedAt > ?`;
       params.push(sqlDateTime);
     }
@@ -99,22 +115,30 @@ async function getTableRecordCount(
     let query = `SELECT COUNT(*) as count FROM \`${tableName}\` WHERE cliente_id = ?`;
     const params = [clientId];
 
+    let sqlDateTime = null;
     if (lastSyncTime) {
-      const sqlDateTime =
-        typeof lastSyncTime === "string"
-          ? lastSyncTime
-          : new Date(lastSyncTime).toISOString().slice(0, 19).replace("T", " ");
+      sqlDateTime = toLocalMySQLDateTime(lastSyncTime);
       query += ` AND updatedAt > ?`;
       params.push(sqlDateTime);
     }
 
+    logger.info(`[DEBUG] getTableRecordCount query: ${query}`);
+    logger.info(
+      `[DEBUG] getTableRecordCount params: ${JSON.stringify(params)}`,
+    );
+    logger.info(
+      `[DEBUG] lastSyncTime was: ${lastSyncTime}, converted to: ${sqlDateTime}`,
+    );
+
     const [rows] = await connection.execute(query, params);
-    return rows[0].count || 0;
+    const count = rows[0].count || 0;
+    logger.info(`[DEBUG] getTableRecordCount result: ${count} records`);
+    return count;
   } catch (err) {
     logger.error(
       `Error getting record count from ${tableName}: ${err.message}`,
     );
-    throw err;
+    return 0;
   }
 }
 

@@ -230,6 +230,21 @@ ipcMain.on("migration:start", async (event, { folderPath, clientId }) => {
     await runMigration(folderPath, clientId, (message) => {
       event.sender.send("migration:progress", message);
     });
+
+    // Start reverse sync automatically after normal sync
+    const reverseSyncService = new ReverseSyncService({
+      logger,
+    });
+
+    await reverseSyncService.start(folderPath, clientId, (message) => {
+      event.sender.send("reverseSync:progress", message);
+    });
+
+    const finalStatus = reverseSyncService.getStatus();
+    event.sender.send(
+      "reverseSync:progress",
+      `Reverse sync completed: ${finalStatus.tablesProcessed} tables processed, ${finalStatus.recordsProcessed} records synced, ${finalStatus.conflictsLogged} conflicts logged.`,
+    );
   } catch (error) {
     event.sender.send("migration:progress", `Error: ${error.message}`);
   }
@@ -447,6 +462,34 @@ if (!gotTheLock) {
           logger.info(
             `Sincronização automática finalizada para Cliente ID: ${lastClient} na pasta: ${lastPath}`,
           );
+
+          // Start reverse sync automatically after normal sync
+          console.log("[AUTO] Iniciando reverse sync...");
+          const reverseSyncService = new ReverseSyncService({
+            logger,
+          });
+
+          await reverseSyncService.start(lastPath, lastClient, (message) => {
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.webContents.send(
+                "reverseSync:progress",
+                `[AUTO] ${message}`,
+              );
+            }
+          });
+
+          const finalStatus = reverseSyncService.getStatus();
+          console.log("[AUTO] Reverse sync finalizado.");
+          currentStatus += `\n Reverse sync finalizado: ${finalStatus.tablesProcessed} tabelas, ${finalStatus.recordsProcessed} registros.`;
+          logger.info(
+            `[AUTO] Reverse sync finalizado: ${finalStatus.tablesProcessed} tabelas, ${finalStatus.recordsProcessed} registros.`,
+          );
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send(
+              "reverseSync:progress",
+              `[AUTO] Reverse sync completed: ${finalStatus.tablesProcessed} tables processed, ${finalStatus.recordsProcessed} records synced, ${finalStatus.conflictsLogged} conflicts logged.`,
+            );
+          }
         } catch (err) {
           console.error("Erro na sincronização automática:", err);
           logger.error(`Erro na migração: ${err.stack}`);
