@@ -79,7 +79,7 @@ async function getChangedRecords(
     if (lastSyncTime) {
       // Convert to MySQL datetime format using LOCAL time
       const sqlDateTime = toLocalMySQLDateTime(lastSyncTime);
-      query += ` AND updatedAt > ?`;
+      query += ` AND (updatedAt > ? OR updatedAt IS NULL)`;
       params.push(sqlDateTime);
     }
 
@@ -118,7 +118,7 @@ async function getTableRecordCount(
     let sqlDateTime = null;
     if (lastSyncTime) {
       sqlDateTime = toLocalMySQLDateTime(lastSyncTime);
-      query += ` AND updatedAt > ?`;
+      query += ` AND (updatedAt > ? OR updatedAt IS NULL)`;
       params.push(sqlDateTime);
     }
 

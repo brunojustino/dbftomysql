@@ -26,8 +26,12 @@ function initDb({ host, port = 3307, user, password, database }) {
     database,
     waitForConnections: true,
     connectionLimit: 10,
-    queueLimit: 0,
+    queueLimit: 100, // SECURITY: Bounded queue prevents memory exhaustion
     enableKeepAlive: true,
+    keepAliveInitialDelayMs: 30000, // Keep alive every 30s
+    connectionTimeout: 30000, // 30s connection timeout
+    enableTimeout: true,
+    timeout: 40000, // 40s query timeout
     timezone: "-03:00",
   });
 
@@ -43,13 +47,31 @@ async function connectToDatabase(logger) {
     logger.info("Successfully connected to MySQL Pool!");
     return connection;
   } catch (error) {
-    console.error("Error connecting to database:", error);
-    console.log(
-      "env: " + process.env.VITE_DB_HOST + " - " + process.env.VITE_DB_USER,
-    );
-    logger.error(`Error connecting to database: ${error.message}`);
+    logger.error(`Error connecting to database: ${error.message}`, {
+      operation: "connectToDatabase",
+      errorStack: error.stack,
+    });
     throw error;
   }
 }
 
-module.exports = { initDb, connectToDatabase };
+/**
+ * Close the database pool gracefully
+ * @param {object} logger - Logger instance
+ */
+async function closeDatabase(logger) {
+  if (pool) {
+    try {
+      await pool.end();
+      logger?.info("Database pool closed successfully");
+      pool = null;
+    } catch (error) {
+      logger?.error(`Error closing database pool: ${error.message}`, {
+        operation: "closeDatabase",
+        errorStack: error.stack,
+      });
+    }
+  }
+}
+
+module.exports = { initDb, connectToDatabase, closeDatabase };

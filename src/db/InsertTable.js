@@ -22,41 +22,62 @@ async function InsertTable(
       onProgress(0, totalRecords);
     }
 
-    // Process in batches
-    for (let i = 0; i < totalRecords; i += batchSize) {
-      const batchValues = values.slice(i, i + batchSize);
-      currentIndex = i;
-      try {
-        const [info] = await db.query(sql, [batchValues]);
-        insertedTotal += info.affectedRows;
-      } catch (batchErr) {
-        // Batch failed - test each row individually to find the bad one
-        // Binary search to find bad row quickly
+    // SECURITY: Wrap all batch operations in a transaction for data consistency
+    await db.query("START TRANSACTION");
 
-        let left = 0;
-        let right = batchValues.length - 1;
-        let badRowIndex = -1;
-
-        while (left <= right) {
-          const mid = Math.floor((left + right) / 2);
-          const testBatch = batchValues.slice(left, mid + 1);
-
-          try {
-            await db.query(sql, [testBatch]);
-            left = mid + 1;
-          } catch (e) {
-            badRowIndex = mid;
-            right = mid - 1;
-          }
+    try {
+      // Process in batches
+      for (let i = 0; i < totalRecords; i += batchSize) {
+        const batchValues = values.slice(i, i + batchSize);
+        currentIndex = i;
+        try {
+          const [info] = await db.query(sql, [batchValues]);
+          insertedTotal += info.affectedRows;
+        } catch (batchErr) {
+          // Batch failed - log detailed error context
+          logger?.error(
+            `Batch insert failed at index ${i}, rolling back transaction`,
+            {
+              operation: "InsertTable",
+              tableName,
+              batchStart: i,
+              batchSize: batchValues.length,
+              totalProcessed: insertedTotal,
+              error: batchErr.message,
+            },
+          );
+          throw batchErr;
         }
 
-        throw batchErr;
+        // Report progress after each batch
+        if (onProgress) {
+          onProgress(Math.min(i + batchSize, totalRecords), totalRecords);
+        }
       }
 
-      // Report progress after each batch
-      if (onProgress) {
-        onProgress(Math.min(i + batchSize, totalRecords), totalRecords);
+      // All batches succeeded - commit the transaction
+      await db.query("COMMIT");
+      logger?.info(`InsertTable committed: ${insertedTotal} rows inserted`, {
+        operation: "InsertTable",
+        tableName,
+        rowsInserted: insertedTotal,
+      });
+    } catch (err) {
+      // Rollback on any error
+      try {
+        await db.query("ROLLBACK");
+        logger?.info(`Transaction rolled back for table ${tableName}`, {
+          operation: "InsertTable",
+          tableName,
+        });
+      } catch (rollbackErr) {
+        logger?.error(`Rollback failed: ${rollbackErr.message}`, {
+          operation: "InsertTable",
+          tableName,
+          error: rollbackErr.message,
+        });
       }
+      throw err;
     }
   } catch (err) {
     const errorMessage = `InsertTable failed: ${err.message}`;
@@ -72,7 +93,12 @@ async function InsertTable(
 
     if (logger) {
       if (typeof logger.error === "function") {
-        logger.error(errorMessage);
+        logger.error(errorMessage, {
+          operation: "InsertTable",
+          tableName,
+          totalRecords: query.values.length,
+          errorStack: err.stack,
+        });
       } else if (typeof logger === "function") {
         await logger(errorMessage);
       }

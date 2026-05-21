@@ -1,11 +1,23 @@
 function UpsertQuery(tableName, records) {
+  // SECURITY: Validate table name against whitelist
+  const TableNames = require("./TableNames.js");
+  const isValidTableName = TableNames.some(
+    (t) => t.toLowerCase() === tableName.toLowerCase(),
+  );
+
+  if (!isValidTableName) {
+    throw new Error(
+      `SECURITY: Invalid table name "${tableName}" - not in whitelist`,
+    );
+  }
+
   const activeRecords = records.filter(
-    (rec) => !rec[Symbol.for("DELETED")] && !rec["@deleted"]
+    (rec) => !rec[Symbol.for("DELETED")] && !rec["@deleted"],
   );
   if (activeRecords.length === 0) return null;
 
   const columns = Object.keys(activeRecords[0]).filter(
-    (k) => typeof k === "string"
+    (k) => typeof k === "string",
   );
   const escapedColumns = columns.map((col) => `\`${col}\``).join(", ");
 

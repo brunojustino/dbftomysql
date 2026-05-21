@@ -8,26 +8,19 @@ const {
   shell,
 } = require("electron");
 
-// if (process.env.NODE_ENV !== "development") {
-//   // These strings are replaced by Vite during build
-//   process.env.VITE_DB_HOST = process.env.VITE_DB_HOST;
-//   process.env.VITE_DB_USER = process.env.VITE_DB_USER;
-//   process.env.VITE_DB_PASS = process.env.VITE_DB_PASS;
-//   process.env.VITE_DB_PORT = process.env.VITE_DB_PORT;
-//   process.env.VITE_DB_NAME = process.env.VITE_DB_NAME;
-// } else {
-//   require("dotenv").config();
-// }
-
 const path = require("path");
 const Store = require("electron-store");
 const { runMigration } = require("./dbftosql.js");
 const ReverseSyncService = require("./services/ReverseSyncService.js");
 const logger = require("./util/logger.js");
-const { initDb, connectToDatabase } = require("./db/db.js");
+const { initDb, connectToDatabase, closeDatabase } = require("./db/db.js");
 const axios = require("axios");
 const { autoUpdater } = require("electron-updater");
 const store = new Store();
+
+// SECURITY: Global sync lock to prevent concurrent migrations
+let isSyncing = false;
+const SYNC_TIMEOUT = 180000; // 3 minutes sync timeout protection
 
 async function initDbIfApiKeySaved() {
   const apiKey = store.get("apiKey");
@@ -130,20 +123,31 @@ ipcMain.handle("test-connection", async () => {
 // });
 
 ipcMain.handle("save-settings", async (event, { apiKey, folderPath }) => {
-  console.log("Validating API Key:", apiKey);
-  console.log("Validating folder:", folderPath);
   try {
+    // SECURITY: Add timeout to API request
     const response = await axios.get(
       "https://proinfo.brunojustino.com/auth/validate-key",
       {
         headers: { "x-api-key": apiKey },
+        timeout: 5000, // 5s timeout
       },
     );
     const { clientId, nome, db_host, db_name, db_usr, db_password } =
       response.data;
 
+    // SECURITY: Validate clientId is a positive integer
+    if (!Number.isInteger(clientId) || clientId <= 0) {
+      logger.error("Invalid clientId from API response", {
+        operation: "save-settings",
+        clientId,
+      });
+      return {
+        success: false,
+        message: "Resposta inválida da API: clientId inválido.",
+      };
+    }
+
     // Initialize the database pool using credentials returned from the auth service
-    // (this replaces the old env-var based pool initialization)
     try {
       initDb({
         host: db_host,
@@ -153,49 +157,81 @@ ipcMain.handle("save-settings", async (event, { apiKey, folderPath }) => {
         port: response.data.db_port || 3307,
       });
     } catch (dbInitErr) {
-      logger.error(`Falha ao inicializar o DB: ${dbInitErr.message}`);
+      logger.error(`Failed to initialize DB: ${dbInitErr.message}`, {
+        operation: "save-settings",
+        errorStack: dbInitErr.stack,
+      });
       return {
         success: false,
         message: "Falha ao inicializar conexão com o banco de dados.",
       };
     }
 
-    // 2. If valid, save to electron-store
-    console.log(clientId, nome);
-
+    // Store API key (electron-store encrypts it at rest)
     store.set("apiKey", apiKey);
     store.set("lastPath", folderPath);
     store.set("lastClient", clientId);
 
-    logger.info(`Configurações salvas para: ${nome}`);
+    logger.info(`Settings saved successfully`, {
+      operation: "save-settings",
+      clientId,
+      nome,
+    });
 
     return { success: true, message: `Conectado: ${nome}` };
   } catch (err) {
     const errorMsg = err.response?.data?.message || err.message;
-    logger.error(`Falha ao salvar configurações: ${errorMsg}`);
+    logger.error(`Failed to save settings: ${errorMsg}`, {
+      operation: "save-settings",
+      errorStack: err.stack,
+    });
     return { success: false, message: errorMsg };
   }
 });
 
 ipcMain.handle("validate-api-key", async (event, apiKey) => {
   try {
-    // Replace with your actual NestJS endpoint
+    // SECURITY: Add timeout to API request
     const response = await axios.get(
       "https://proinfo.brunojustino.com/auth/validate-key",
       {
         headers: { "x-api-key": apiKey },
+        timeout: 5000, // 5s timeout
       },
     );
 
-    // Assuming your API returns { clientId: 22, name: 'ASSOJAF/PE' }
+    // SECURITY: Validate response contains required fields
     const { clientId, nome } = response.data;
 
+    if (!Number.isInteger(clientId) || clientId <= 0 || !nome) {
+      logger.error("Invalid API response format", {
+        operation: "validate-api-key",
+        hasClientId: clientId !== undefined,
+        hasNome: nome !== undefined,
+      });
+      return { success: false, message: "Resposta inválida da API." };
+    }
+
+    // Store API key (electron-store encrypts it at rest)
     store.set("apiKey", apiKey);
     store.set("lastClient", clientId);
 
+    logger.info("API key validated successfully", {
+      operation: "validate-api-key",
+      clientId,
+    });
+
     return { success: true, clientName: nome, clientId };
   } catch (err) {
-    logger.error(`Falha na validação da API Key: ${err.message}`);
+    const errorMsg =
+      err.code === "ECONNABORTED"
+        ? "Timeout na validação da API"
+        : err.response?.data?.message || err.message;
+
+    logger.error(`API key validation failed: ${errorMsg}`, {
+      operation: "validate-api-key",
+      errorCode: err.code,
+    });
     return { success: false, message: "Chave inválida ou erro de conexão." };
   }
 });
@@ -217,18 +253,59 @@ ipcMain.handle("get:lastClient", () => {
 ipcMain.handle("get-settings", () => {
   return {
     apiKey: store.get("apiKey"),
-    folderPath: store.get("lastPath"), // Internal store uses 'lastPath'
+    folderPath: store.get("lastPath"),
     lastClient: store.get("lastClient"),
   };
 });
 
 // Triggered when user clicks "Start" in the UI
 ipcMain.on("migration:start", async (event, { folderPath, clientId }) => {
+  // SECURITY: Prevent concurrent syncs
+  if (isSyncing) {
+    const message = "Sync already in progress. Please wait for it to complete.";
+    logger.warn(message, { operation: "migration:start", clientId });
+    event.sender.send("migration:progress", `Error: ${message}`);
+    return;
+  }
+
+  // SECURITY: Validate clientId
+  if (!Number.isInteger(clientId) || clientId <= 0) {
+    logger.error("Invalid clientId provided", {
+      operation: "migration:start",
+      clientId,
+    });
+    event.sender.send("migration:progress", "Error: Invalid client ID");
+    return;
+  }
+
+  isSyncing = true;
+  const syncStartTime = Date.now();
+  const syncTimeout = setTimeout(() => {
+    isSyncing = false;
+    logger.error("Sync timeout - forcing sync lock release", {
+      operation: "migration:start",
+      clientId,
+      duration: Date.now() - syncStartTime,
+    });
+  }, SYNC_TIMEOUT);
+
   store.set("lastClient", clientId);
   store.set("lastPath", folderPath);
+
   try {
+    logger.info("Starting migration", {
+      operation: "migration:start",
+      clientId,
+      folderPath,
+    });
+
     await runMigration(folderPath, clientId, (message) => {
       event.sender.send("migration:progress", message);
+    });
+
+    logger.info("Migration completed, starting reverse sync", {
+      operation: "migration:start",
+      clientId,
     });
 
     // Start reverse sync automatically after normal sync
@@ -245,16 +322,70 @@ ipcMain.on("migration:start", async (event, { folderPath, clientId }) => {
       "reverseSync:progress",
       `Reverse sync completed: ${finalStatus.tablesProcessed} tables processed, ${finalStatus.recordsProcessed} records synced, ${finalStatus.conflictsLogged} conflicts logged.`,
     );
+
+    logger.info("Full sync cycle completed", {
+      operation: "migration:start",
+      clientId,
+      tablesProcessed: finalStatus.tablesProcessed,
+      recordsProcessed: finalStatus.recordsProcessed,
+      conflictsLogged: finalStatus.conflictsLogged,
+      duration: Date.now() - syncStartTime,
+    });
   } catch (error) {
+    logger.error(`Sync error: ${error.message}`, {
+      operation: "migration:start",
+      clientId,
+      errorStack: error.stack,
+      duration: Date.now() - syncStartTime,
+    });
     event.sender.send("migration:progress", `Error: ${error.message}`);
+  } finally {
+    isSyncing = false;
+    clearTimeout(syncTimeout);
   }
 });
 
 // Triggered when user clicks "Pull from Database" in the UI (reverse sync)
 ipcMain.on("reverseSync:start", async (event, { folderPath, clientId }) => {
+  // SECURITY: Prevent concurrent syncs
+  if (isSyncing) {
+    const message = "Sync already in progress. Please wait for it to complete.";
+    logger.warn(message, { operation: "reverseSync:start", clientId });
+    event.sender.send("reverseSync:progress", `Error: ${message}`);
+    return;
+  }
+
+  // SECURITY: Validate clientId
+  if (!Number.isInteger(clientId) || clientId <= 0) {
+    logger.error("Invalid clientId provided", {
+      operation: "reverseSync:start",
+      clientId,
+    });
+    event.sender.send("reverseSync:progress", "Error: Invalid client ID");
+    return;
+  }
+
+  isSyncing = true;
+  const syncStartTime = Date.now();
+  const syncTimeout = setTimeout(() => {
+    isSyncing = false;
+    logger.error("Reverse sync timeout - forcing sync lock release", {
+      operation: "reverseSync:start",
+      clientId,
+      duration: Date.now() - syncStartTime,
+    });
+  }, SYNC_TIMEOUT);
+
   store.set("lastClient", clientId);
   store.set("lastPath", folderPath);
+
   try {
+    logger.info("Starting reverse sync", {
+      operation: "reverseSync:start",
+      clientId,
+      folderPath,
+    });
+
     const reverseSyncService = new ReverseSyncService({
       logger,
     });
@@ -268,14 +399,60 @@ ipcMain.on("reverseSync:start", async (event, { folderPath, clientId }) => {
       "reverseSync:progress",
       `Reverse sync completed: ${finalStatus.tablesProcessed} tables processed, ${finalStatus.recordsProcessed} records synced, ${finalStatus.conflictsLogged} conflicts logged.`,
     );
+
+    logger.info("Reverse sync completed", {
+      operation: "reverseSync:start",
+      clientId,
+      tablesProcessed: finalStatus.tablesProcessed,
+      recordsProcessed: finalStatus.recordsProcessed,
+      conflictsLogged: finalStatus.conflictsLogged,
+      duration: Date.now() - syncStartTime,
+    });
   } catch (error) {
+    logger.error(`Reverse sync error: ${error.message}`, {
+      operation: "reverseSync:start",
+      clientId,
+      errorStack: error.stack,
+      duration: Date.now() - syncStartTime,
+    });
     event.sender.send("reverseSync:progress", `Error: ${error.message}`);
+  } finally {
+    isSyncing = false;
+    clearTimeout(syncTimeout);
   }
 });
 
 ipcMain.on("open-logs", () => {
-  // This opens the folder in Windows Explorer and highlights the file
-  shell.showItemInFolder(logger.getLogPath());
+  try {
+    const logPath = logger.getLogPath();
+    logger.info("Opening logs folder", {
+      operation: "open-logs",
+      path: logPath,
+    });
+
+    // Try to open the log file, or if it doesn't exist, open the directory
+    const fs = require("fs");
+    if (fs.existsSync(logPath)) {
+      shell.showItemInFolder(logPath);
+    } else {
+      // If log file doesn't exist yet, open the directory
+      const logDir = require("path").dirname(logPath);
+      if (fs.existsSync(logDir)) {
+        shell.openPath(logDir);
+      } else {
+        logger.error("Log path does not exist", {
+          operation: "open-logs",
+          logPath,
+          logDir,
+        });
+      }
+    }
+  } catch (err) {
+    logger.error(`Failed to open logs: ${err.message}`, {
+      operation: "open-logs",
+      errorStack: err.stack,
+    });
+  }
 });
 
 function createTray() {
@@ -294,7 +471,23 @@ function createTray() {
     {
       label: "Abrir Logs",
       click: () => {
-        shell.showItemInFolder(logger.getLogPath());
+        try {
+          const logPath = logger.getLogPath();
+          const fs = require("fs");
+          if (fs.existsSync(logPath)) {
+            shell.showItemInFolder(logPath);
+          } else {
+            const logDir = require("path").dirname(logPath);
+            if (fs.existsSync(logDir)) {
+              shell.openPath(logDir);
+            }
+          }
+        } catch (err) {
+          logger.error(`Failed to open logs from tray: ${err.message}`, {
+            operation: "open-logs",
+            errorStack: err.stack,
+          });
+        }
       },
     },
     {
@@ -383,7 +576,7 @@ if (!gotTheLock) {
 
     // Event listeners for the updater
     autoUpdater.on("checking-for-update", () => {
-      console.log("Checking for update...");
+      logger.debug("Checking for update...");
     });
 
     autoUpdater.on("update-available", (info) => {
@@ -398,28 +591,25 @@ if (!gotTheLock) {
     });
 
     autoUpdater.on("update-not-available", (info) => {
-      console.log("Update not available.", info);
+      logger.debug("Update not available");
     });
 
     autoUpdater.on("error", (err) => {
-      console.error("Error in auto-updater.", err);
+      logger.error(`Error in auto-updater: ${err.message}`, {
+        operation: "autoUpdater",
+        errorStack: err.stack,
+      });
     });
 
     autoUpdater.on("download-progress", (progressObj) => {
-      let log_message = "Download speed: " + progressObj.bytesPerSecond;
-      log_message = log_message + " - Downloaded " + progressObj.percent + "%";
-      log_message =
-        log_message +
-        " (" +
-        progressObj.transferred +
-        "/" +
-        progressObj.total +
-        ")";
-      console.log(log_message);
+      logger.debug(
+        `Update download progress: ${progressObj.percent}% (${progressObj.transferred}/${progressObj.total} bytes)`,
+        { operation: "autoUpdater" },
+      );
     });
 
     autoUpdater.on("update-downloaded", (info) => {
-      console.log("Update downloaded.", info);
+      logger.info("Update downloaded", { operation: "autoUpdater" });
       dialog
         .showMessageBox(mainWindow, {
           type: "info",
@@ -444,9 +634,10 @@ if (!gotTheLock) {
       const lastClient = parseInt(rawClient, 10);
 
       if (lastPath && !isNaN(lastClient)) {
-        console.log(
-          `[AUTO] Iniciando para Cliente ID: ${lastClient} na pasta: ${lastPath}`,
-        );
+        logger.info("[AUTO] Starting auto sync", {
+          operation: "autoSync",
+          clientId: lastClient,
+        });
         try {
           await runMigration(lastPath, lastClient, (message) => {
             // Safety check before sending to UI
@@ -457,14 +648,20 @@ if (!gotTheLock) {
               );
             }
           });
-          console.log("Sincronização automática finalizada.");
+          logger.info("[AUTO] Auto sync migration completed", {
+            operation: "autoSync",
+            clientId: lastClient,
+          });
           currentStatus = `\n Sincronização automática finalizada para Cliente ID: ${lastClient} na pasta: ${lastPath}`;
           logger.info(
             `Sincronização automática finalizada para Cliente ID: ${lastClient} na pasta: ${lastPath}`,
           );
 
           // Start reverse sync automatically after normal sync
-          console.log("[AUTO] Iniciando reverse sync...");
+          logger.info("[AUTO] Starting auto reverse sync", {
+            operation: "autoSync",
+            clientId: lastClient,
+          });
           const reverseSyncService = new ReverseSyncService({
             logger,
           });
@@ -479,7 +676,13 @@ if (!gotTheLock) {
           });
 
           const finalStatus = reverseSyncService.getStatus();
-          console.log("[AUTO] Reverse sync finalizado.");
+          logger.info("[AUTO] Auto reverse sync completed", {
+            operation: "autoSync",
+            clientId: lastClient,
+            tablesProcessed: finalStatus.tablesProcessed,
+            recordsProcessed: finalStatus.recordsProcessed,
+            conflictsLogged: finalStatus.conflictsLogged,
+          });
           currentStatus += `\n Reverse sync finalizado: ${finalStatus.tablesProcessed} tabelas, ${finalStatus.recordsProcessed} registros.`;
           logger.info(
             `[AUTO] Reverse sync finalizado: ${finalStatus.tablesProcessed} tabelas, ${finalStatus.recordsProcessed} registros.`,
@@ -491,11 +694,14 @@ if (!gotTheLock) {
             );
           }
         } catch (err) {
-          console.error("Erro na sincronização automática:", err);
-          logger.error(`Erro na migração: ${err.stack}`);
+          logger.error(`[AUTO] Auto sync error: ${err.message}`, {
+            operation: "autoSync",
+            clientId: lastClient,
+            errorStack: err.stack,
+          });
         }
       } else {
-        console.log("Sincronização automática pulada: Faltam configurações.");
+        logger.warn("[AUTO] Auto sync skipped: Missing configuration");
         currentStatus = `\n Configure sua chave api`;
       }
     };
@@ -513,4 +719,39 @@ if (!gotTheLock) {
 // Ensure the app doesn't quit when all windows are closed
 app.on("window-all-closed", (e) => {
   e.preventDefault();
+});
+
+// SECURITY: Graceful shutdown - close database pool and complete in-flight operations
+app.on("before-quit", async (e) => {
+  // Prevent quit temporarily
+  e.preventDefault();
+
+  logger.info("App shutting down", { operation: "shutdown" });
+
+  // If sync is in progress, wait a bit for it to complete
+  if (isSyncing) {
+    logger.warn("App quit requested while sync is in progress", {
+      operation: "shutdown",
+    });
+    // Wait up to 5 seconds for sync to complete
+    const shutdownTimeout = setTimeout(() => {
+      logger.warn("Forcing shutdown - sync timeout", { operation: "shutdown" });
+      isSyncing = false;
+      closeDatabase(logger).then(() => app.exit(0));
+    }, 5000);
+
+    // Check every 100ms if sync completed
+    const checkInterval = setInterval(() => {
+      if (!isSyncing) {
+        clearInterval(checkInterval);
+        clearTimeout(shutdownTimeout);
+        closeDatabase(logger).then(() => app.exit(0));
+      }
+    }, 100);
+  } else {
+    // Sync not in progress, close cleanly
+    await closeDatabase(logger);
+    logger.info("App shutdown completed", { operation: "shutdown" });
+    app.exit(0);
+  }
 });

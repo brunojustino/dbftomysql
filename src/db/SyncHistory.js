@@ -29,12 +29,12 @@ const createConflictsQuery = `
 async function CreateSyncHistoryTable(db, logger) {
   try {
     // 1. Check if table exists in the current database
-    const [tables] = await db.execute(`SHOW TABLES LIKE 'sync_history'`);
+    const [tables] = await db.query(`SHOW TABLES LIKE 'sync_history'`);
     const tableExists = tables.length > 0;
 
     if (!tableExists) {
       // 2. If it doesn't exist, create it
-      await db.execute(createSyncQuery);
+      await db.query(createSyncQuery);
       console.log(`Table "sync_history" created successfully!`);
     } else {
       // 3. If it DOES exist, run the structure update logic
@@ -53,13 +53,13 @@ async function CreateSyncHistoryTable(db, logger) {
 async function ensureSyncHistoryColumns(db, logger) {
   try {
     // Check if last_processed_on column exists
-    const [columns] = await db.execute(
+    const [columns] = await db.query(
       `SHOW COLUMNS FROM sync_history LIKE 'last_processed_on'`,
     );
 
     if (columns.length === 0) {
       // Add the column if it doesn't exist
-      await db.execute(
+      await db.query(
         `ALTER TABLE sync_history ADD COLUMN last_processed_on DATETIME`,
       );
       console.log(`Column "last_processed_on" added to sync_history table.`);
@@ -67,7 +67,7 @@ async function ensureSyncHistoryColumns(db, logger) {
     }
 
     // Also ensure file_hash is nullable for reverse sync
-    await db.execute(
+    await db.query(
       `ALTER TABLE sync_history MODIFY COLUMN file_hash VARCHAR(32) NULL`,
     );
   } catch (err) {
@@ -78,11 +78,11 @@ async function ensureSyncHistoryColumns(db, logger) {
 
 async function CreateSyncConflictsTable(db, logger) {
   try {
-    const [tables] = await db.execute(`SHOW TABLES LIKE 'sync_conflicts'`);
+    const [tables] = await db.query(`SHOW TABLES LIKE 'sync_conflicts'`);
     const tableExists = tables.length > 0;
 
     if (!tableExists) {
-      await db.execute(createConflictsQuery);
+      await db.query(createConflictsQuery);
       console.log(`Table "sync_conflicts" created successfully!`);
       logger.info(`Table "sync_conflicts" created successfully!`);
     } else {

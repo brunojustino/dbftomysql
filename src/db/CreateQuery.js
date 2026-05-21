@@ -94,7 +94,7 @@ function CreateQuery(
   // Add timestamp fields
   columns.push("  `createdAt` TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
   columns.push(
-    "  `updatedAt` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP",
+    "  `updatedAt` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP",
   );
   columns.push("  `last_sync` DATETIME");
 

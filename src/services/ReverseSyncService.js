@@ -257,6 +257,9 @@ class ReverseSyncService {
             this.logger,
           );
 
+          console.log(
+            `${tableName}: Successfully processed ${allRecords.length} records and wrote to ${jsonFilePath}`,
+          );
           this.state.tablesProcessed++;
           this.state.recordsProcessed += allRecords.length;
           report(

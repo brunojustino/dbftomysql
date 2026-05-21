@@ -14,7 +14,6 @@ function InsertQuery(tableName, records, clienteId) {
       "createdat",
       "updatedat",
       "last_sync",
-      "status",
     ];
 
     const processedRecords = records.map((rec, idx) => {
