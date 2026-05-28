@@ -3,43 +3,11 @@ const path = require("path");
 const fs = require("fs"); // Standard fs for sync operations like hashing
 const fsPromises = require("fs").promises;
 const crypto = require("crypto");
-const tableKeys = require("../db/TablesKeys");
-const CreateQuery = require("../db/CreateQuery");
-const CreateTable = require("../db/CreateTable");
 const InsertTable = require("../db/InsertTable");
 const InsertQuery = require("../db/InsertQuery");
-const { getDbfStructure, getDbfRecords } = require("./DbfFuncs");
+const { getDbfRecords } = require("./DbfFuncs");
 const TableNames = require("../db/TableNames");
 const { updateSuccessfulMigration } = require("../db/SyncHistory");
-
-async function createTable(
-  db,
-  tableName,
-  fullPath,
-  overrides = {},
-  uniqueKey = null,
-  logger,
-) {
-  const structure = await getDbfStructure(fullPath);
-  // const overrides = { DESCRICAO: 120 };
-  const createQueryString = CreateQuery(
-    tableName,
-    structure,
-    overrides,
-    uniqueKey,
-    logger,
-  );
-  // console.log("Create Table Query:\n" + createQueryString);
-  await CreateTable(
-    db,
-    tableName,
-    createQueryString,
-    structure,
-    overrides,
-    logger,
-  );
-  return createQueryString;
-}
 
 async function insertTable(db, tableName, query, onProgress = null, logger) {
   try {
@@ -86,7 +54,6 @@ async function processFolder(
     // 3. Loop through them
     let processedCount = 0;
     for (const file of dbfFiles) {
-      let createQuery = null;
       let insertQuery = null;
       let records = null;
       try {
@@ -121,16 +88,6 @@ async function processFolder(
             `Failed to fetch sync history for ${fileName}: ${hashErr.message}`,
           );
         }
-
-        const uniqueKey = tableKeys[fileName.toLowerCase()] || null;
-        createQuery = await createTable(
-          db,
-          fileName,
-          fullPath,
-          {},
-          uniqueKey,
-          logger,
-        );
 
         // Progress callback for individual file records
         const onProgress = (current, total) => {
@@ -180,10 +137,6 @@ async function processFolder(
       } catch (tableError) {
         // Log error with queries and continue with next file
         let errorDetails = `Error processing file '${file}': ${tableError.message}`;
-
-        if (createQuery) {
-          errorDetails += `\n--- CREATE QUERY ---\n${createQuery}`;
-        }
 
         if (insertQuery && typeof insertQuery === "object" && insertQuery.sql) {
           errorDetails += `\n--- INSERT QUERY ---\n${insertQuery.sql}`;

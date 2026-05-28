@@ -25,9 +25,9 @@ function InsertQuery(tableName, records, clienteId) {
         // We also handle renaming of reserved fields here
         const newRec = {};
         Object.keys(rec).forEach((key) => {
-          let targetKey = key;
-          if (reservedNames.includes(key.toLowerCase())) {
-            targetKey = `${key.toLowerCase()}2`;
+          let targetKey = key.toLowerCase();
+          if (reservedNames.includes(targetKey)) {
+            targetKey = `${targetKey}2`;
           }
           newRec[targetKey] = rec[key];
         });
@@ -79,7 +79,7 @@ function InsertQuery(tableName, records, clienteId) {
 
     // 3. Prepare the SQL template
     const escapedColumns = columns
-      .map((col) => `\`${col.toLowerCase()}\``)
+      .map((col) => `\`${col}\``)
       .join(", ");
 
     // Check if NaN snuck into the SQL

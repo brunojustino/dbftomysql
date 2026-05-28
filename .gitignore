@@ -9,6 +9,6 @@ dist_electron/
 log.txt
 log-errors.txt
 rendererOld.html
-proinfo-sync-updater.2026-02-06.private-key.pem
+proinfo-sync-updater.2026-05-21.private-key.pem
 generate-token.js
 .notes.txt

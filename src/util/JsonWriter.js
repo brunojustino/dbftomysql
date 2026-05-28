@@ -22,11 +22,30 @@ async function writeJsonFile(filePath, records, logger) {
       return filtered;
     });
 
+    let existingRecords = [];
+    let fileExists = false;
+
+    try {
+      const existingContent = await fsPromises.readFile(filePath, "utf8");
+      const existingData = JSON.parse(existingContent);
+      if (Array.isArray(existingData.records)) {
+        existingRecords = existingData.records;
+        fileExists = true;
+      }
+    } catch (readErr) {
+      // File does not exist or is unreadable/invalid — start fresh
+      fileExists = false;
+    }
+
+    const allRecords = fileExists
+      ? existingRecords.concat(filteredRecords)
+      : filteredRecords;
+
     // Prepare metadata
     const jsonData = {
       timestamp: new Date().toISOString(),
-      recordCount: filteredRecords.length,
-      records: filteredRecords,
+      recordCount: allRecords.length,
+      records: allRecords,
     };
 
     // Convert to JSON string with 2-space indentation for readability
@@ -35,9 +54,15 @@ async function writeJsonFile(filePath, records, logger) {
     // Write to file (creates or overwrites)
     await fsPromises.writeFile(filePath, jsonString, "utf8");
 
-    logger.info(
-      `JSON file written successfully: ${filePath} (${filteredRecords.length} records)`,
-    );
+    if (fileExists) {
+      logger.info(
+        `JSON file appended successfully: ${filePath} (${existingRecords.length} existing + ${filteredRecords.length} new = ${allRecords.length} records)`,
+      );
+    } else {
+      logger.info(
+        `JSON file written successfully: ${filePath} (${filteredRecords.length} records)`,
+      );
+    }
   } catch (err) {
     logger.error(`Failed to write JSON file at ${filePath}: ${err.message}`);
     throw err;
